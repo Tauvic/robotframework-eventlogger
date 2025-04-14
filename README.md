@@ -2,6 +2,8 @@
 
 De Event Logger biedt een set van tools en keywords om problemen met asynchroon gedrag op te lossen en meer inzicht te krijgen in het gedrag van je webapplicatie. In deze repository vind je zowel de code als een voorbeeld project om een en ander uit te kunnen testen.
 
+![log](images/log.png)
+
 ## Hoe gebruik je de Event Logger?
 
 Volg de onderstaande stappen om de Event Logger te gebruiken:
