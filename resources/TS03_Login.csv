@@ -1,0 +1,6 @@
+*** Test Cases ***;${email};${password};${msgs};[Tags];[Documentation]
+;abcde;12345678!Ab;Error: Email format is invalid;;Invalid e-mail format:
+;abcde@;12345678!Ab;Error: Email format is invalid;;Invalid e-mail format:
+;abcde@gmail.com;12345678!Ab;Error: Invalid email or password;;Valid email format, that is not a real user
+;demoa@specialisterren.nl;1234abc!;Error: Invalid email or password;;Valid password, that does not belong to the user
+;demoa@specialisterren.nl;1;Error: Password length is invalid;;Invalid length password
