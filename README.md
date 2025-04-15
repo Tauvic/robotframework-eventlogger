@@ -1,21 +1,37 @@
 # Robot Framework Event Logger
 
-The Event Logger provides a set of tools and keywords to solve problems with asynchronous behavior and gain more insight into the behavior of your web application. In this repository, you will find both the code and an example project to test everything.
+Robot Framework is an powerful and easy to learn test framework. Its keywords provide you with a syntax to build test scripts. It has limitations when dealing with asynchronous web applications such as Angular and React.
+
+The Event Logger therefore provides you with a set of tools and keywords to solve these challenges and gain more insight into the behavior of your web application. In this repository, you will find both the code and an example project to try out and test everything.
 
 ตัวบันทึกเหตุการณ์ (Event Logger) มีชุดเครื่องมือและคีย์เวิร์ดต่างๆ เพื่อแก้ไขปัญหาเกี่ยวกับพฤติกรรมแบบอะซิงโครนัส (asynchronous behavior) และช่วยให้เข้าใจพฤติกรรมของเว็บแอปพลิเคชันของคุณได้ลึกซึ้งยิ่งขึ้น ใน repository นี้ คุณจะพบทั้งโค้ดและโปรเจกต์ตัวอย่างเพื่อให้คุณสามารถทดลองใช้งานทุกอย่างได้
+
+The Event Logger is based on the Browser (Playwright) Library. It consists of a Python library to support additional keywords, a listener interface and some javascript to collect data within the browser. It supports all browsers supported by Playwright. 
+
+The Event Logger provides the following services:
+
+* Collect and log web app events:
+  * asynchronous API requests
+  * web app alerts and messages
+  * web app console logging
+* Synchronize test activity with these events
+* Enable you to use these events in assertions (future feature)
+* Create reports showing scripted activities and events in context
 
 ## How to use the Event Logger??
 
 
 ### 1. Add the Event Logger to your test suite
 
-The EventLogger uses two scripts ([EventLogger.py](resources/EventLogger.py) and a Browser extension [Eventlogger.js](resources/EventLogger.js)). Import the Browser and Event Logger libraries into your Robot Framework test suite. Add the following lines to your `.robot` file:
+The EventLogger itself is currently based on two scripts ([EventLogger.py](resources/EventLogger.py) and a javascript Browser extension [Eventlogger.js](resources/EventLogger.js)). Import the Browser and Event Logger libraries into your Robot Framework test suite. Add the following lines to your `.robot` file:
 ```robot
 
 *** Settings ***
 Library        Browser    jsextension=${CURDIR}/EventLogger.js
 Library        EventLogger
 ```
+
+
 
 ### 2.  Initialize the Event Logger
 
