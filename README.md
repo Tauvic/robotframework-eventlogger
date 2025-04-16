@@ -1,24 +1,36 @@
 # Robot Framework Event Logger
 
-Robot Framework is a powerful and easy to learn test framework. Its keywords provide you with a syntax to build test scripts. It has limitations when dealing with asynchronous web applications such as Angular and React.
+Robot Framework is a versatile and user-friendly test automation framework, known for its keyword-driven approach that simplifies test script creation. However, testing modern asynchronous web applications, particularly those built with frameworks like Angular and React, can present challenges.
 
-The Event Logger therefore provides you with a set of tools and keywords to solve these challenges and gain more insight into the behavior of your web application. In this repository, you will find both the code and an example project to try out and test everything.
+These applications heavily rely on JavaScript to dynamically update page content by fetching data from backend services in the background. This asynchronous behavior makes it difficult for traditional test automation techniques to reliably interact with and verify the application's state.
+
+**Robot Framework Event Logger** addresses these challenges by providing a dedicated set of tools and custom keywords designed to enhance your testing capabilities for asynchronous web applications. This library also offers deeper insights into the dynamic behavior of your application, enabling more robust and reliable test automation.
+
+**In this repository, you will find:**
+
+* The source code for the Robot Framework Event Logger library.
+* An example project demonstrating how to effectively utilize the provided keywords and tools in a real-world scenario.
+
+We encourage you to explore the code and the example project to understand how the Event Logger can help you overcome the complexities of testing asynchronous web applications with Robot Framework.
 
 For my Thai friends: ตัวบันทึกเหตุการณ์ (Event Logger) มีชุดเครื่องมือและคีย์เวิร์ดต่างๆ เพื่อแก้ไขปัญหาเกี่ยวกับพฤติกรรมแบบอะซิงโครนัส (asynchronous behavior) และช่วยให้เข้าใจพฤติกรรมของเว็บแอปพลิเคชันของคุณได้ลึกซึ้งยิ่งขึ้น ใน repository นี้ คุณจะพบทั้งโค้ดและโปรเจกต์ตัวอย่างเพื่อให้คุณสามารถทดลองใช้งานทุกอย่างได้
 
-The Event Logger is based on the Browser (Playwright) Library. It consists of a Python library to support additional keywords, a listener interface and some javascript to collect data within the browser. It supports all browsers supported by Playwright. 
+## What does it do?
 
-The Event Logger provides the following services:
+The Event Logger leverages the power of the Browser (Playwright) Library to provide enhanced testing capabilities. It comprises a Python library offering additional keywords, a listener interface for seamless integration with your tests, and JavaScript code injected into the browser to collect crucial data. Importantly, it supports all browsers compatible with Playwright.
 
-* Collect and log web app events:
-  * asynchronous API requests
-  * web app alerts and messages
-  * web app console logging
-* Synchronize test activity with these events
-* Enable you to use these events in assertions (future feature)
-* Create reports showing scripted activities and events in context
+The Event Logger offers the following key services:
 
-You can add Event Logger to your existing scripts with minimal changes.
+* **Collect and Log Web App Events:**
+    * Asynchronous API requests, providing visibility into background data fetching.
+    * Web application alerts and messages, capturing important user interactions and notifications.
+    * Web application console logging, allowing you to track JavaScript errors and debugging information.
+* **Synchronize Test Activity with Events:** Enables your test scripts to intelligently wait for specific events to occur before proceeding, ensuring stability and preventing premature interactions.
+* **Enable Event-Based Assertions (Future Feature):** Laying the groundwork for future capabilities to directly assert on the occurrence and details of logged events.
+* **Generate Contextual Reports:** Creates comprehensive reports that integrate scripted test actions with the recorded events, providing a clear timeline and understanding of application behavior during testing.
+
+Integrating the Event Logger into your existing Robot Framework test scripts requires minimal modifications, allowing you to quickly benefit from its advanced features.
+
 
 ## How to use the Event Logger??
 
