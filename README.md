@@ -31,91 +31,85 @@ The Event Logger offers the following key services:
 
 Integrating the Event Logger into your existing Robot Framework test scripts requires minimal modifications, allowing you to quickly benefit from its advanced features.
 
+## How to use the Event Logger?
 
-## How to use the Event Logger??
+### 1. Add the Event Logger to your Test Suite
 
+The core of the Event Logger currently consists of two essential files: `EventLogger.py` (the Python library) located in `resources/EventLogger.py`, and `Eventlogger.js` (the browser extension in JavaScript) found at `resources/Eventlogger.js`. You need to include these files within your project structure.
 
-### 1. Add the Event Logger to your test suite
+Import both the Browser library and the Event Logger library into your Robot Framework test suite. Add the following lines to your `.robot` or `.resource` file:
 
-The EventLogger itself is currently based on only two scripts ([EventLogger.py](resources/EventLogger.py) and a javascript Browser extension [Eventlogger.js](resources/EventLogger.js)). You have to add these to your project. 
-
-Import the Browser and Event Logger libraries into your Robot Framework test suite. Add the following lines to your `.robot` or `.resource` file:
 ```robot
-
 *** Settings ***
-Library        Browser    jsextension=${CURDIR}/EventLogger.js
-Library        EventLogger
+Library           Browser         jsextension=${CURDIR}/EventLogger.js
+Library           EventLogger
 ```
-In my project is use a [common.resource](resources/common.resource) resource file.
 
-### 2.  Initialize the Event Logger
+In my project, I utilize a common.resource file (located at resources/common.resource) to manage such imports.
 
-The Event Logger collects and manages all events withing the scope of a Browser Context and a test. Optional reporting is done after each test.
+## 2. Initialize the Event Logger
+The Event Logger operates by collecting and managing events within the scope of a Playwright Browser Context and an individual test case. Optional reporting of these events occurs after each test execution.
 
-For proper performance, ensure that the Playwright Browser Context is initialized first. Then initialize the EventLogger immediately after:
+For optimal performance and correct operation, ensure that the Playwright Browser Context is initialized before initializing the EventLogger immediately afterward:
 
 ```robot
 Test Setup
-    [Documentation]  Open Browser Home Page
-    Browser.New Context  tracing=${TRACING}
-    EventLogger.Init  maxWait=10000  minIdle=150  waitAfter=Browser.Click, Browser.Go To  
-    ...               alerts=xpath=//div[contains(@class, 'alert-danger')]
-
+    [Documentation]    Open Browser Home Page
+    Browser.New Context    tracing=${TRACING}
+    EventLogger.Init    maxWait=10000    minIdle=150    waitAfter=Browser.Click, Browser.Go To
+    ...                alerts=xpath=//div[contains(@class, 'alert-danger')]
 ```
+Arguments for EventLogger.Init:
 
-Arguments:
+* maxWait: The maximum timeout in milliseconds to wait for events to settle.
 
-* maxWait: timeout in milliseconds to wait (maximum wait time)
-* minIdle: wait until there are no more API requests
-* waitAfter: a list of keywords, comma seperated (will automaticely wait after these keywords)
+* minIdle: The minimum time in milliseconds of inactivity (no new API requests) to consider events settled.
 
-### 3. Report the events
+* waitAfter: A comma-separated list of Robot Framework keywords. The Event Logger will automatically wait for events after the execution of these specified keywords.
 
-After each test we add EventLogger to report all collected events and alerts.
+* alerts: An optional locator (e.g., XPath) to identify elements on the page that represent application alerts or error messages. These will be specifically tracked and included in the reports.
+
+## 3. Report the Events
+To generate a report of all collected events and alerts after each test, add the EventLogger.Report keyword to your test teardown:
 
 ```robot
 Test Teardown
-  [Documentation]  Test Teardown
-  EventLogger.Report Event Logging
-  Run Keyword If Test Failed    Take Screenshot  fullPage=True
+    [Documentation]    Test Teardown
+    EventLogger.Report Event Logging
+    Run Keyword If Test Failed    Take Screenshot    fullPage=True
 ```
 
-### 4. Use WaitForEvents
+## 4. Utilize WaitForEvents for Synchronization
+In many scenarios, configuring the waitAfter argument during EventLogger.Init will be sufficient to ensure your tests wait for API requests to complete after specific actions like navigating to a new page (Browser.Go To) or clicking buttons/links (Browser.Click). The Event Logger's listener interface automatically inserts a WaitForEvents call after these specified keywords.
 
-In most cases, you can setup EventLogger.Init to indicate when you want to wait for API requests. For example, always wait immediately after a new page "Go To" and after a Click on a button or link. This will be sufficient in most cases. The EventLogger has a listener interface that recognizes you use a keyword and automaticly inserts a WaitForEvents keyword.
+```robot
+# Notice we have removed waitAfter from the Init
+EventLogger.Init    maxWait=10000    minIdle=150
+...                alerts=xpath=//div[contains(@class, 'alert-danger')]
 
- ```robot
-# Notice we have removed waitAfter 
-EventLogger.Init  maxWait=10000  minIdle=150  
-...               waitAfter=Browser.Click, Browser.Go To 
-...               alerts=xpath=//div[contains(@class, 'alert-danger')]
-
-# Somewhere in your script    
-# Click at the login button
+# Somewhere in your script
+# Click the login button
 ${l_button}    Get Element By Role    button    name=Login    exact=true
-Click  ${l_button}
+Click    ${l_button}
 
- # Now we have waited for all API request
- # Here we can check the UI because its stable
+# The Event Logger automatically waits for API requests to settle after the Click
+# Now you can reliably interact with the UI as it should be stable
 ```
 
-But if you need more control you can also use Wait For Events as a separate keyword and add it where you need it.
+However, for more granular control over when to wait for events, you can explicitly use the Wait For Events keyword within your test script:
 
- ```robot
-# Notice we have removed waitAfter 
-EventLogger.Init  maxWait=10000  minIdle=150  
-...               alerts=xpath=//div[contains(@class, 'alert-danger')]
+```robot
+# Notice we have removed waitAfter from the Init
+EventLogger.Init    maxWait=10000    minIdle=150
+...                alerts=xpath=//div[contains(@class, 'alert-danger')]
 
- # Somewhere in your script    
- Wait For Events
- # Now we have waited for all API request
- # Here we can check the UI because its stable
+# Somewhere in your script
+Wait For Events
+# You can now perform assertions on the stable UI
 ```
 
-### 5. View the logs
-After running a test, you can view the generated logs in the `results` folder. Open `log.html` in a browser to get an overview of the logged events.
+### 5. View the Logs
+After executing your tests, detailed logs of the collected events are generated in the results folder. Open the log.html file in your web browser to access a comprehensive overview of the logged events, providing valuable context for your test execution.
 
-![log](images/log.png)
-
-### 5.  Customizing the Event Logger
-If you need specific functionalities, you can extend the Python and JavaScript functions in the Event Logger. Add your own functions to `EventLogger.py` and use them in your tests.
+### 6. Customizing the Event Logger
+For users with specific needs, the Event Logger offers extensibility. You can add your own custom functionalities by
