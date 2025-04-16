@@ -61,13 +61,13 @@ Test Setup
 ```
 Arguments for EventLogger.Init:
 
-* maxWait: The maximum timeout in milliseconds to wait for events to settle.
+* `maxWait`: The maximum timeout in milliseconds to wait for events to settle.
 
-* minIdle: The minimum time in milliseconds of inactivity (no new API requests) to consider events settled.
+* `minIdle`: The minimum time in milliseconds of inactivity (no new API requests) to consider events settled.
 
-* waitAfter: A comma-separated list of Robot Framework keywords. The Event Logger will automatically wait for events after the execution of these specified keywords.
+* `waitAfter`: A comma-separated list of Robot Framework keywords. The Event Logger will automatically wait for events after the execution of these specified keywords.
 
-* alerts: An optional locator (e.g., XPath) to identify elements on the page that represent application alerts or error messages. These will be specifically tracked and included in the reports.
+* `alerts`: An optional locator (e.g., XPath) to identify elements on the page that represent application alerts or error messages. These will be specifically tracked and included in the reports.
 
 ## 3. Report the Events
 To generate a report of all collected events and alerts after each test, add the EventLogger.Report keyword to your test teardown:
@@ -80,7 +80,7 @@ Test Teardown
 ```
 
 ## 4. Utilize WaitForEvents for Synchronization
-In many scenarios, configuring the waitAfter argument during EventLogger.Init will be sufficient to ensure your tests wait for API requests to complete after specific actions like navigating to a new page (Browser.Go To) or clicking buttons/links (Browser.Click). The Event Logger's listener interface automatically inserts a WaitForEvents call after these specified keywords.
+In many scenarios, configuring the waitAfter argument during EventLogger.Init will be sufficient to ensure your tests wait for API requests to complete after specific actions like navigating to a new page `Browser.Go To` or clicking buttons/links `Browser.Click`. The Event Logger's listener interface automatically inserts a `WaitForEvents` call after these specified keywords.
 
 ```robot
 # Notice we have removed waitAfter from the Init
@@ -109,7 +109,9 @@ Wait For Events
 ```
 
 ### 5. View the Logs
-After executing your tests, detailed logs of the collected events are generated in the results folder. Open the log.html file in your web browser to access a comprehensive overview of the logged events, providing valuable context for your test execution.
+After executing your tests, detailed logs of the collected events are generated in the results folder. Open the `log.html` file in your web browser to access a comprehensive overview of the logged events, providing valuable context for your test execution.
+
+![Log](./images/log.png)
 
 ### 6. Customizing the Event Logger
 For users with specific needs, the Event Logger offers extensibility. You can add your own custom functionalities by
