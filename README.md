@@ -15,7 +15,7 @@ We encourage you to explore the code and the example project to understand how t
 
 For my Thai friends: ตัวบันทึกเหตุการณ์ (Event Logger) มีชุดเครื่องมือและคีย์เวิร์ดต่างๆ เพื่อแก้ไขปัญหาเกี่ยวกับพฤติกรรมแบบอะซิงโครนัส (asynchronous behavior) และช่วยให้เข้าใจพฤติกรรมของเว็บแอปพลิเคชันของคุณได้ลึกซึ้งยิ่งขึ้น ใน repository นี้ คุณจะพบทั้งโค้ดและโปรเจกต์ตัวอย่างเพื่อให้คุณสามารถทดลองใช้งานทุกอย่างได้
 
-## What does it do?
+## What does Event Logger do?
 
 The Event Logger leverages the power of the Browser (Playwright) Library to provide enhanced testing capabilities. It comprises a Python library offering additional keywords, a listener interface for seamless integration with your tests, and JavaScript code injected into the browser to collect crucial data. Importantly, it supports all browsers compatible with Playwright.
 
@@ -29,7 +29,7 @@ The Event Logger offers the following key services:
 * **Enable Event-Based Assertions (Future Feature):** Laying the groundwork for future capabilities to directly assert on the occurrence and details of logged events.
 * **Generate Contextual Reports:** Creates comprehensive reports that integrate scripted test actions with the recorded events, providing a clear timeline and understanding of application behavior during testing.
 
-Integrating the Event Logger into your existing Robot Framework test scripts requires minimal modifications, allowing you to quickly benefit from its advanced features.
+Integrating the Event Logger into your existing Robot Framework test scripts requires **minimal modifications**, allowing you to quickly benefit from its advanced features.
 
 ## How to use the Event Logger?
 
@@ -114,4 +114,4 @@ After executing your tests, detailed logs of the collected events are generated 
 ![Log](./images/log.png)
 
 ### 6. Customizing the Event Logger
-For users with specific needs, the Event Logger offers extensibility. You can add your own custom functionalities by
+For users with specific needs, the Event Logger offers extensibility. If you need specific functionalities, you can extend the Python and JavaScript functions. Add your own functions to `EventLogger.py` and use them in your tests.
