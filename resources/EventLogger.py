@@ -60,7 +60,7 @@ class EventLogger:
         all_events.sort(key=lambda ev: datetime.fromisoformat(ev['time']))
 
         # Generate HTML report
-        report = self._generate_html_report(all_events).replace('{','^')
+        report = self._generate_html_report(all_events)
 
         # Attach report to Robot Framework logs
         if report and addToTestMessage:

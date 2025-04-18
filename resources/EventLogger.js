@@ -97,7 +97,7 @@ async function initEventLogger(
 
     await context.addInitScript(context => {
 
-        console.info('addInitScript');
+        console.debug('addInitScript');
 
         // create a new instance of `MutationObserver` named `observer`,
         const observer = new MutationObserver((mutations) => {
@@ -145,25 +145,25 @@ async function initEventLogger(
                 switch(mutation.type) {
                     case 'childList':
                         for (const node of mutation.addedNodes) {
-                            console.info(`Element ${node.tagName} ${node.className}`);
+                            console.debug(`Element ${node.tagName} ${node.className}`);
                             const msgType = getMsgType(node);
                             if (!msgType) return;                     
                             const msgClass = getMsgClass(node); 
-                            console.info(`Message: add type=${msgType} class=${msgClass} ${node.innerText}`);
+                            console.debug(`Message: add type=${msgType} class=${msgClass} ${node.innerText}`);
                         };
                         for (const node of mutation.removedNodes) {
-                            console.info(`Element ${node.tagName} ${node.className}`);
+                            console.debug(`Element ${node.tagName} ${node.className}`);
                             const msgType = getMsgType(node);
                             if (!msgType) return;                     
                             const msgClass = getMsgClass(node);   
-                            console.info(`Message: del type=${msgType} class=${msgClass} ${node.innerText}`);
+                            console.debug(`Message: del type=${msgType} class=${msgClass} ${node.innerText}`);
                         };
                         break;   
                     case "attributes":
-                        console.info(mutation.target.tagName,'attributes');
+                        console.debug(mutation.target.tagName,'attributes');
                         break;
                     case "characterData":                     
-                        console.info(mutation.target.tagName,'characterData');
+                        console.debug(mutation.target.tagName,'characterData');
                         break;
                 }
             }
@@ -179,7 +179,7 @@ async function initEventLogger(
 
             for (let i = 0; i < result.snapshotLength; i++) {
                 node = result.snapshotItem(i);
-                console.warn(`node=${node.localName} class=${node.className} text=${node.innerText}`);
+                console.debug(`node=${node.localName} class=${node.className} text=${node.innerText}`);
             }
 
         }, context);
