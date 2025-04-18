@@ -97,13 +97,79 @@ async function initEventLogger(
 
     await context.addInitScript(context => {
 
+        console.info('addInitScript');
+
         // create a new instance of `MutationObserver` named `observer`,
         const observer = new MutationObserver((mutations) => {
 
             // class = toast-container success error warning
+            //| Type             | Elements   |
+            //| ---------------- | ---------- |
+            //| Snackbar/Toast   | `<snack-bar-container>`, `<mat-snack-bar-container>`, `.mat-snack-bar-container`, `.toast`, `.snackbar` |
+            //| Dialog/Modal     | `<mat-dialog-container>`, `.mat-dialog-container`, `<dialog>`, `.modal`, custom selectors like `<my-dialog>` |
+            //| Alert banner     | `<div class="alert">`, `<div class="alert-success">`, `<div class="alert-danger">`, `<mat-error>`,`<mat-alert>` |
+            //| Inline error     | `<mat-error>`, `<span class="error">`, `<div class="form-error">` |            
+
+            function getMsgType(node) {
+                const classProp = node.className;
+                if (!classProp) return;
+                switch (true) {
+                    case classProp.includes('alert'):
+                      return 'alert';
+                    case classProp.includes('toast'):
+                      return 'toast';
+                    case classProp.includes('snack'):
+                      return 'snack';                      
+                }
+            }
+
+            function getMsgClass(node){
+                const classProp = node.className;
+                if (!classProp) return;                
+                switch (true) {
+                    case classProp.includes('info'):
+                        return('info');
+                    case classProp.includes('success'):
+                        return('success');                        
+                    case classProp.includes('warning'):
+                        return('warning');
+                    case classProp.includes('error'):
+                        return('error');                        
+                    case classProp.includes('danger'):
+                        return('danger');  
+                }                
+            }
+
+            for (const mutation of mutations) {
+
+                switch(mutation.type) {
+                    case 'childList':
+                        for (const node of mutation.addedNodes) {
+                            console.info(`Element ${node.tagName} ${node.className}`);
+                            const msgType = getMsgType(node);
+                            if (!msgType) return;                     
+                            const msgClass = getMsgClass(node); 
+                            console.info(`Message: add type=${msgType} class=${msgClass} ${node.innerText}`);
+                        };
+                        for (const node of mutation.removedNodes) {
+                            console.info(`Element ${node.tagName} ${node.className}`);
+                            const msgType = getMsgType(node);
+                            if (!msgType) return;                     
+                            const msgClass = getMsgClass(node);   
+                            console.info(`Message: del type=${msgType} class=${msgClass} ${node.innerText}`);
+                        };
+                        break;   
+                    case "attributes":
+                        console.info(mutation.target.tagName,'attributes');
+                        break;
+                    case "characterData":                     
+                        console.info(mutation.target.tagName,'characterData');
+                        break;
+                }
+            }
 
             const result = window.document.evaluate(
-                "//div[contains(@class, 'alert-danger')]",
+                "//div[contains(@class, 'alert') or contains(@class, 'error') or contains(@class, 'toastr') or contains(@class, 'snack')] | //mat-error | //mat-alert",
                 window.document,
                 null,
                 XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
@@ -113,37 +179,10 @@ async function initEventLogger(
 
             for (let i = 0; i < result.snapshotLength; i++) {
                 node = result.snapshotItem(i);
-                console.warn(node.localName, node.className, node.innerText);
+                console.warn(`node=${node.localName} class=${node.className} text=${node.innerText}`);
             }
 
-            return;
-
-            for (const mutation of mutations) {
-                if (mutation.type === 'childList') {
-
-                    for (const node of mutation.addedNodes) {
-                        // check if node matches alerts xpath
-                        //div[contains(@class, 'alert-danger')]
-                        if (node.tagName === 'DIV' && node.className.includes('alert')) {
-                            switch (true) {
-                                case node.className.includes('alert-info'):
-                                    console.info('Alert: info', node.innerText);
-                                    break;
-                                case node.className.includes('alert-success'):
-                                    console.info('Alert: success', node.innerText);
-                                    break;
-                                case node.className.includes('alert-warning'):
-                                    console.warn('Alert: warning', node.innerText);
-                                    break;
-                                case node.className.includes('alert-danger'):
-                                    console.error('Alert: danger', node.innerText);
-                                    break;
-                            }
-                        }
-                    }
-                }
-            }
-        });
+        }, context);
 
         // call `observe()`, passing it the element to observe, and the options object
         observer.observe(window.document, {
@@ -152,7 +191,6 @@ async function initEventLogger(
         });
 
     }, context);
-
 
     // listen for requests
     context.on('request', request => {
@@ -299,7 +337,7 @@ async function initEventLogger(
             context.req.events.push({ 'time': new Date(), 'event': 'console', 'type': 'INFO', 'data': `Frame navigated: ${frame.url()}` });
         });
         page.on('pageerror', data => {
-            context.req.events.push({ 'time': new Date(), 'event': 'console', 'type': 'ERROR', 'data': data.message() });
+            context.req.events.push({ 'time': new Date(), 'event': 'console', 'type': 'ERROR', 'data': data.message });
         });
     });
 

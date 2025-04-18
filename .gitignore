@@ -1,5 +1,6 @@
 .venv
 **/__pycache__/
+rommel
 results
 playwright-log*
 .DS_Store
