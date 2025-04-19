@@ -71,6 +71,8 @@ Arguments for EventLogger.Init:
 
 * `alerts=null`: A locator (e.g., XPath) to identify elements on the page that represent application alerts or error messages. These will be specifically tracked and included in the reports.
 
+* `loglevel=INFO`: sets the logged events to DEBUG, INFO, WARN, ERROR or NONE
+
 ## 3. Report the Events
 To generate a report of all collected events and alerts after each test, add the EventLogger.Report keyword to your test teardown:
 
@@ -137,7 +139,7 @@ Based on these findings, I believe:
 
 In summary, while the Event Logger effectively monitors application behavior under normal and slow network conditions, additional test scenarios simulating server errors are needed to ensure comprehensive testing.
 
-# Work in progess
+# Work in progress
 
 The Event Logger follows a generic and holistic testing philosophy.  Rather than creating specific test scripts for every situation, it emphasizes triggering application behavior and then capturing all UI and API events in a comprehensive event log. This log is subsequently used to evaluate whether the application behaved as expected.
 
@@ -174,6 +176,40 @@ Angular:
 | Dialog/Modal     | `<mat-dialog-container>`, `.mat-dialog-container`, `<dialog>`, `.modal`, custom selectors like `<my-dialog>` |
 | Alert banner     | `<div class="alert">`, `<div class="alert-success">`, `<div class="alert-danger">`, `<mat-error>`,`<mat-alert>` |
 | Inline error     | `<mat-error>`, `<span class="error">`, `<div class="form-error">` |
+
+Typical code examples:
+```html
+<div class='toast-container'>
+  <div class='ngx-toastr toast-info'>
+    <div class='toast-title aria-label='MyTitle'>MyTitle</div>
+    <div class='toast-message' role='alert'>MyMessage</div>
+  </div>
+</div>
+
+<div class='alert alert-danger' role='alert'>An alert</div>
+
+<simple-snack-bar class="mat-mdc-simple-snack-bar">
+  <div matsnackbarlabel="" class="mat-mdc-snack-bar-label mdc-snackbar__label">
+    Disco party!
+  </div>
+ <div matsnackbaractions="" class="mat-mdc-snack-bar-actions mdc-snackbar__actions">
+    <button mat-button="" matsnackbaraction="" class="mat-mdc-snack-bar-action mdc-snackbar__action     mdc-button mat-mdc-button mat-unthemed mat-mdc-button-base" mat-ripple-loader-class-name="mat-mdc-button-ripple">
+      <span class="mat-mdc-button-persistent-ripple mdc-button__ripple"></span>
+      <span class="mdc-button__label"> Dance </span>
+      <span class="mat-focus-indicator"></span>
+      <span class="mat-mdc-button-touch-target"></span>
+      <span class="mat-ripple mat-mdc-button-ripple"></span>
+    </button>
+  </div>
+</simple-snack-bar>
+```
+
+Model:
+* type: alert | toast | snackbar (we use the type name as defined by the framework itself)
+* class:  info | warning | error | danger | success (we use the class name as defined by the framework itself)
+* title: optional  
+* message: optional
+
 
 Test environments for alerts
 * Angular:

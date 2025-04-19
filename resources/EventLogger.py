@@ -3,8 +3,16 @@ from robot.api import logger
 from robot import running, result
 from robot.libraries.BuiltIn import BuiltIn
 from datetime import datetime, timezone
+from enum import Enum
 
 import html
+
+class LogLevel(Enum):
+    DEBUG = 1
+    INFO = 2
+    WARN = 3
+    ERROR = 4
+    NONE = 5
 
 @library(scope='TEST', version='0.0.1',listener='SELF')
 class EventLogger:
@@ -27,17 +35,20 @@ class EventLogger:
       self.pageOpen= False
       self.level = 0
       self.local_events = []  # Local list to store events
+      self.logLevel:LogLevel = LogLevel.INFO
 
     @keyword('Init')
     def initEventLogging(self, 
                          maxWait:int=10000,
                          minIdle:int=150,
                          waitAfter:str=None,
-                         alerts:str=None,):
+                         alerts:str=None,
+                         logLevel:LogLevel=LogLevel.INFO):
         """
         Init Event Logging        
         """
         self.waitAfter = waitAfter
+        self.logLevel  = logLevel
         BuiltIn().run_keyword('Browser.initEventLogger',maxWait,minIdle,alerts) 
 
     @keyword('Wait For Events')
@@ -60,7 +71,7 @@ class EventLogger:
         all_events.sort(key=lambda ev: datetime.fromisoformat(ev['time']))
 
         # Generate HTML report
-        report = self._generate_html_report(all_events)
+        report = self._generate_html_report(all_events).replace('{','\{')
 
         # Attach report to Robot Framework logs
         if report and addToTestMessage:
@@ -78,10 +89,11 @@ class EventLogger:
 
         level = 0
         html = '<table style="width:100%"><tr><th style="width:100px">Time</th><th style="width:100px">Event source</th><th style="width:100px">Type</th><th style="width:100%">Data</th></tr>'
-        for ev in events:
+        for ev in events:            
             time = ev['time'][11:23]  # Extract time from ISO timestamp
             event = ev['event']
             event_type = ev['type']
+            if LogLevel[event_type].value < self.logLevel.value: continue            
             data = self._format_event_data(ev)
             level = ev.get('level', level)
 

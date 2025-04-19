@@ -140,23 +140,28 @@ async function initEventLogger(
                 }                
             }
 
+            console.debug('MutationObserver');
+
             for (const mutation of mutations) {
+
+                const node = mutation.target
+                console.debug(`Mutation tag=${node.tagName} class=${node.className}`);
 
                 switch(mutation.type) {
                     case 'childList':
                         for (const node of mutation.addedNodes) {
-                            console.debug(`Element ${node.tagName} ${node.className}`);
+                            console.debug(`Element tag=${node.tagName} class=${node.className} text=${node.innerText}`);
                             const msgType = getMsgType(node);
                             if (!msgType) return;                     
                             const msgClass = getMsgClass(node); 
-                            console.debug(`Message: add type=${msgType} class=${msgClass} ${node.innerText}`);
+                            console.debug(`Message: add type=${msgType} class=${msgClass} text=${node.innerText}`);
                         };
                         for (const node of mutation.removedNodes) {
-                            console.debug(`Element ${node.tagName} ${node.className}`);
+                            console.debug(`Element ${node.tagName} ${node.className} text=${node.innerText}`);
                             const msgType = getMsgType(node);
                             if (!msgType) return;                     
                             const msgClass = getMsgClass(node);   
-                            console.debug(`Message: del type=${msgType} class=${msgClass} ${node.innerText}`);
+                            console.debug(`Message: del type=${msgType} class=${msgClass} text=${node.innerText}`);
                         };
                         break;   
                     case "attributes":

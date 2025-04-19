@@ -87,7 +87,7 @@ Test Setup
     [Documentation]  Open Browser Home Page
     Browser.New Context  tracing=${TRACING}
     EventLogger.Init  maxWait=10000  minIdle=150  waitAfter=Browser.Click, Browser.Go To  
-    ...               alerts=xpath=//div[contains(@class, 'alert-danger')]
+    ...               alerts=xpath=//div[contains(@class, 'alert-danger')]  logLevel=INFO
 
     New Page
 
