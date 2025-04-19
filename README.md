@@ -15,6 +15,8 @@ We encourage you to explore the code and the example project to understand how t
 
 For my Thai friends: ตัวบันทึกเหตุการณ์ (Event Logger) มีชุดเครื่องมือและคีย์เวิร์ดต่างๆ เพื่อแก้ไขปัญหาเกี่ยวกับพฤติกรรมแบบอะซิงโครนัส (asynchronous behavior) และช่วยให้เข้าใจพฤติกรรมของเว็บแอปพลิเคชันของคุณได้ลึกซึ้งยิ่งขึ้น ใน repository นี้ คุณจะพบทั้งโค้ดและโปรเจกต์ตัวอย่างเพื่อให้คุณสามารถทดลองใช้งานทุกอย่างได้
 
+Read more in my blog: [De Uitdaging van Flaky Tests in Moderne Webapplicaties](https://tauvicr.wordpress.com/2025/04/02/de-uitdaging-van-flaky-tests-in-moderne-webapplicaties/)
+
 ## What does Event Logger do?
 
 The Event Logger leverages the power of the Browser (Playwright) Library to provide enhanced testing capabilities. It comprises a Python library offering additional keywords, a listener interface for seamless integration with your tests, and JavaScript code injected into the browser to collect crucial data. Importantly, it supports all browsers compatible with Playwright.
@@ -116,28 +118,55 @@ After executing your tests, detailed logs of the collected events are generated 
 ## 6. Customizing the Event Logger
 For users with specific needs, the Event Logger offers extensibility. If you need specific functionalities, you can extend the Python and JavaScript functions. Add your own functions to `EventLogger.py` and use them in your tests.
 
+# Testing the Event Logger
+
+Testing the Event Logger presents some unique challenges. My approach focuses on verifying the reliability of web application behavior, especially under adverse conditions.  I primarily achieve this by:
+
+* **Simulating a slow network:** By configuring `${NETWORK_SPEED}` to "Slow 3G" in `common.resource`, I intentionally introduce latency to API requests.
+* **Repeating tests extensively:** I run the same test suite (e.g., shopping tests) many times (30+) to expose potential edge cases and race conditions.
+
+My observations include:
+
+* As expected, the slow network simulation significantly increases API response times (up to 3 seconds).  The Event Logger effectively captures these slow responses, and the tests generally pass reliably under these conditions.
+* However, with repeated test executions, I've encountered intermittent internal server errors from the API.  These errors are not consistently handled by the web application, as evidenced by the lack of corresponding alerts in the UI.
+
+Based on these findings, I believe:
+
+* The Event Logger fulfills its core purpose of capturing and reporting asynchronous events, particularly network-related ones.
+* To improve test coverage, future efforts should include simulating server-side errors (e.g., 500 Internal Server Error) and verifying that the web application handles them gracefully (e.g., displaying user-friendly alerts).
+
+In summary, while the Event Logger effectively monitors application behavior under normal and slow network conditions, additional test scenarios simulating server errors are needed to ensure comprehensive testing.
+
 # Work in progess
 
-The philosophy behind this Event logger is to use a more generic and holistic test approach. Instead of building specific test scripts for each situation. Then trigger the application to expose its behaviour. Collect all UI and API events in a event log. Then use this log the evaluate if this is the expected behaviour. This requires us to collect all kinds of information in a buffer at regular intervals preferable continously. Then at certain moments when we consider the application to be "stable" evaluate the result.
+The Event Logger follows a generic and holistic testing philosophy.  Rather than creating specific test scripts for every situation, it emphasizes triggering application behavior and then capturing all UI and API events in a comprehensive event log. This log is subsequently used to evaluate whether the application behaved as expected.
 
-* Expected events  (Should happen)
-* Undesired events (Should not happen)
-* Unexpected events (Grey area)
+This approach necessitates the continuous or frequent collection of diverse information into a buffer.  Evaluations occur at designated "stable" points, focusing on:
 
-This will allow us to use a data table driven test approach where decisions tables can be used.
+* **Expected events:** Events that *should* occur.
+* **Undesired events:** Events that should *not* occur.
+* **Unexpected events:** Events that fall into a gray area.
 
-
+This methodology enables a data-driven testing approach, potentially leveraging decision tables.
 
 ## Alert logging
 
-Currently working on logging alerts and messages. 
+I'm currently developing a system for logging alerts and messages, which requires a generic model for their description and classification. This model includes:
 
-Message class
-* error
-* warning
-* info
-* success
+* **Appearance and Purpose**: How the alert is displayed and its intended function, message class.
+* **Content**: Whether it has a title and/or a text message.
+* **Styling**: The alert's color.
+* **Functionality**: Any interactive elements, such as buttons.
+* **Accessibility**: Support for accessibility standards (e.g., `aria-role="alert"`).
 
+Additionally, the system will capture triggering and timing information:
+
+* Why and when the alert is shown.
+* How long the alert remains visible.
+
+How to identify alerts: We have to find these elements in the html content. They appear dynamicly and live only for a limited time. So it requires special attention. I will start with Angular and then add more frameworks later on.
+
+Angular:
 
 | Type             | Elements   |
 | ---------------- | ---------- |
@@ -145,6 +174,11 @@ Message class
 | Dialog/Modal     | `<mat-dialog-container>`, `.mat-dialog-container`, `<dialog>`, `.modal`, custom selectors like `<my-dialog>` |
 | Alert banner     | `<div class="alert">`, `<div class="alert-success">`, `<div class="alert-danger">`, `<mat-error>`,`<mat-alert>` |
 | Inline error     | `<mat-error>`, `<span class="error">`, `<div class="form-error">` |
+
+Test environments for alerts
+* Angular:
+  * https://ngx-toastr.vercel.app/
+  * https://material.angularjs.org/latest/demo/toast
 
 ## wait for Events
 
