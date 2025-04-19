@@ -59,7 +59,7 @@ Test Setup
     [Documentation]    Open Browser Home Page
     Browser.New Context    tracing=${TRACING}
     EventLogger.Init    maxWait=10000    minIdle=150    waitAfter=Browser.Click, Browser.Go To
-    ...                alerts=xpath=//div[contains(@class, 'alert-danger')]
+    ...                alerts=xpath=//div[contains(@class, 'alert-danger')]  logLevel=INFO
 ```
 Arguments for EventLogger.Init:
 
@@ -71,7 +71,7 @@ Arguments for EventLogger.Init:
 
 * `alerts=null`: A locator (e.g., XPath) to identify elements on the page that represent application alerts or error messages. These will be specifically tracked and included in the reports.
 
-* `loglevel=INFO`: sets the logged events to DEBUG, INFO, WARN, ERROR or NONE
+* `logLevel=INFO`: sets the logged events to DEBUG, INFO, WARN, ERROR or NONE
 
 ## 3. Report the Events
 To generate a report of all collected events and alerts after each test, add the EventLogger.Report keyword to your test teardown:
@@ -157,7 +157,6 @@ I'm currently developing a system for logging alerts and messages, which require
 
 * **Appearance and Purpose**: How the alert is displayed and its intended function, message class.
 * **Content**: Whether it has a title and/or a text message.
-* **Styling**: The alert's color.
 * **Functionality**: Any interactive elements, such as buttons.
 * **Accessibility**: Support for accessibility standards (e.g., `aria-role="alert"`).
 
@@ -202,7 +201,12 @@ Typical code examples:
     </button>
   </div>
 </simple-snack-bar>
+
+<!-- Plain message bit weird formatting not even a proper message just visible text -->
+<div class='ng-star-inserted'>Some message</div>
 ```
+
+>Note: The web application that we use for testing our framework sometimes creates a weird and unstructured message format. The `European Accessibility Act (EAA)` is a European Union directive (EU 2019/882) that aims to harmonize accessibility requirements for a range of products and services, making them more accessible to persons with disabilities and older people. With this new law applications like this are no longer acceptable.
 
 Model:
 * type: alert | toast | snackbar (we use the type name as defined by the framework itself)
@@ -210,6 +214,7 @@ Model:
 * title: optional  
 * message: optional
 
+Challenges: are these elements visible or not? Complex css and javascript dynamics can make things invisible.
 
 Test environments for alerts
 * Angular:

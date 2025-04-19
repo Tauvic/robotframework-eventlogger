@@ -137,7 +137,7 @@ class EventLogger:
       
     def start_user_keyword(self, kw:running.Keyword, impl, result:result.Keyword): 
 
-      if result.status in ['FAIL','SKIP','NOT RUN']: return
+      if result.status in ['FAIL','SKIP','NOT RUN']: return      
 
       try:
         self.level +=1
@@ -255,6 +255,16 @@ class EventLogger:
                                 'data': msg})
 
       self.level -=1   
+
+    def start_test(self, data: running.TestCase, result):
+        m = data.tags.match('logLevel:*')
+        if data.tags.match('logLevel:*'):
+           for tag in data.tags:
+              if tag.startswith('logLevel'):
+                 level = tag.split(':')[1]
+                 
+                 #BuiltIn().run_keyword('Browser.setLogLevel',level) 
+        
 
 
 
