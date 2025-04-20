@@ -265,6 +265,3 @@ class EventLogger:
                  
                  #BuiltIn().run_keyword('Browser.setLogLevel',level) 
         
-
-
-

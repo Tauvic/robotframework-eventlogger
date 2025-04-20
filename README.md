@@ -1,5 +1,8 @@
 # Robot Framework Event Logger
 
+<img align="right" width="250" src="images/EventLogger.png"/>
+
+
 **The situation**: Robot Framework is a versatile and user-friendly test automation framework, known for its keyword-driven approach that simplifies test script creation. However, testing modern `asynchronous` web applications, particularly those built with frameworks like Angular and React, can present challenges.
 
 **The challenge:** Web applications rely heavily on JavaScript to dynamically update page content by fetching data from backend services in the background. This `asynchronous` behavior makes it difficult for traditional test automation techniques to reliably interact with and verify the application's state.
@@ -11,7 +14,8 @@
 * The source code for the Robot Framework Event Logger library.
 * An example project demonstrating how to effectively utilize the provided keywords and tools in a real-world scenario.
 
-We encourage you to explore the code and the example project to understand how the Event Logger can help you overcome the complexities of testing asynchronous web applications with Robot Framework.
+> [!NOTE]
+> We encourage you to explore the code and the example project to understand how the Event Logger can help you overcome the complexities of testing asynchronous web applications with Robot Framework.
 
 For my Thai friends: ตัวบันทึกเหตุการณ์ (Event Logger) มีชุดเครื่องมือและคีย์เวิร์ดต่างๆ เพื่อแก้ไขปัญหาเกี่ยวกับพฤติกรรมแบบอะซิงโครนัส (asynchronous behavior) และช่วยให้เข้าใจพฤติกรรมของเว็บแอปพลิเคชันของคุณได้ลึกซึ้งยิ่งขึ้น ใน repository นี้ คุณจะพบทั้งโค้ดและโปรเจกต์ตัวอย่างเพื่อให้คุณสามารถทดลองใช้งานทุกอย่างได้
 
@@ -32,6 +36,20 @@ The Event Logger offers the following key services:
 * **Generate Contextual Reports:** Creates comprehensive reports that integrate scripted test actions with the recorded events, providing a clear timeline and understanding of application behavior during testing.
 
 Integrating the Event Logger into your existing Robot Framework test scripts requires **minimal modifications**, allowing you to quickly benefit from its advanced features.
+
+## Supporting javascript frameworks
+
+Our goal is to support testing modern web applications built with popular JavaScript frameworks such as React, Angular, and Vue.js.
+
+We are currently exploring the most effective strategy for handling the unique characteristics of each framework. This includes evaluating whether a generic approach can adequately capture the necessary events and ensure reliable synchronization, or if framework-specific solutions would offer a more robust and accurate testing experience.
+
+Key considerations in this investigation include:
+
+* **Generic vs. Specific Solutions**: Determining if a unified mechanism can effectively address the asynchronous patterns and event handling conventions of all target frameworks, or if tailored implementations for React, Angular, and Vue.js are required for optimal performance and accuracy.
+* **Framework Identification**: Exploring methods for the Event Logger to automatically identify the JavaScript framework used by the application under test. This could involve analyzing specific DOM structures, global variables, or other framework-specific indicators. Alternatively, we are considering whether requiring the user to explicitly specify the framework as a parameter during initialization would be a more reliable approach.
+
+
+We are committed to finding the solution that offers the best balance of ease of use, reliability, and comprehensive event capture for testing modern web applications built with these leading JavaScript frameworks. Your feedback and insights on this topic are highly valued as we move forward.
 
 # How to use the Event Logger?
 
@@ -58,7 +76,7 @@ For optimal performance and correct operation, ensure that the Playwright Browse
 Test Setup
     [Documentation]    Open Browser Home Page
     Browser.New Context    tracing=${TRACING}
-    EventLogger.Init    maxWait=10000    minIdle=150    waitAfter=Browser.Click, Browser.Go To
+    EventLogger.Init   waitAfter=Browser.Click, Browser.Go To
     ...                alerts=xpath=//div[contains(@class, 'alert-danger')]  logLevel=INFO
 ```
 Arguments for EventLogger.Init:
@@ -88,8 +106,7 @@ In many scenarios, configuring the waitAfter argument during EventLogger.Init wi
 
 ```robot
 # Notice we have removed waitAfter from the Init
-EventLogger.Init    maxWait=10000    minIdle=150
-...                alerts=xpath=//div[contains(@class, 'alert-danger')]
+EventLogger.Init  alerts=xpath=//div[contains(@class, 'alert-danger')]
 
 # Somewhere in your script
 # Click the login button
@@ -104,8 +121,7 @@ However, for more granular control over when to wait for events, you can explici
 
 ```robot
 # Notice we have removed waitAfter from the Init
-EventLogger.Init    maxWait=10000    minIdle=150
-...                alerts=xpath=//div[contains(@class, 'alert-danger')]
+EventLogger.Init  alerts=xpath=//div[contains(@class, 'alert-danger')]
 
 # Somewhere in your script
 Wait For Events
@@ -151,13 +167,21 @@ This approach necessitates the continuous or frequent collection of diverse info
 
 This methodology enables a data-driven testing approach, potentially leveraging decision tables.
 
+## wait for Events
+
+The wait for Events function waits for the application to be stable with a timeout. Currently we use a generic approach but we could also use framework specific approaches. This may be better and requirers further investigation.
+
+angular: https://angular.dev/api/core/Testability
+
+Find out if this will work and if there are more frameworks that have similar solutions.
+
 ## Alert logging
 
 I'm currently developing a system for logging alerts and messages, which requires a generic model for their description and classification. This model includes:
 
-* **Appearance and Purpose**: How the alert is displayed and its intended function, message class.
+* **Appearance and Purpose**: How the alert is displayed and its intended function.
 * **Content**: Whether it has a title and/or a text message.
-* **Functionality**: Any interactive elements, such as buttons.
+* **Functionality**: Any interactive elements, such as buttons and timer effects.
 * **Accessibility**: Support for accessibility standards (e.g., `aria-role="alert"`).
 
 Additionally, the system will capture triggering and timing information:
@@ -176,8 +200,9 @@ Angular:
 | Alert banner     | `<div class="alert">`, `<div class="alert-success">`, `<div class="alert-danger">`, `<mat-error>`,`<mat-alert>` |
 | Inline error     | `<mat-error>`, `<span class="error">`, `<div class="form-error">` |
 
-Typical code examples:
+Typical angular code examples:
 ```html
+<!-- toast alway comes in a container -->
 <div class='toast-container'>
   <div class='ngx-toastr toast-info'>
     <div class='toast-title aria-label='MyTitle'>MyTitle</div>
@@ -185,8 +210,10 @@ Typical code examples:
   </div>
 </div>
 
+<!-- alerts can appear everwhere -->
 <div class='alert alert-danger' role='alert'>An alert</div>
 
+<!-- same with snackbars -->
 <simple-snack-bar class="mat-mdc-simple-snack-bar">
   <div matsnackbarlabel="" class="mat-mdc-snack-bar-label mdc-snackbar__label">
     Disco party!
@@ -201,30 +228,28 @@ Typical code examples:
     </button>
   </div>
 </simple-snack-bar>
+```
 
+The Shop application is also based on Angular and has a weird structure. Its not even user friendly.
+
+```html
 <!-- Plain message bit weird formatting not even a proper message just visible text -->
 <div class='ng-star-inserted'>Some message</div>
 ```
 
->Note: The web application that we use for testing our framework sometimes creates a weird and unstructured message format. The `European Accessibility Act (EAA)` is a European Union directive (EU 2019/882) that aims to harmonize accessibility requirements for a range of products and services, making them more accessible to persons with disabilities and older people. With this new law applications like this are no longer acceptable.
+>Note: The web application that we use for testing our framework sometimes creates a weird and unstructured message format. The `European Accessibility Act (EAA)` is a European Union directive ([EU 2019/882](https://commission.europa.eu/strategy-and-policy/policies/justice-and-fundamental-rights/disability/union-equality-strategy-rights-persons-disabilities-2021-2030_en)) that aims to harmonize accessibility requirements for a range of products and services, making them more accessible to persons with disabilities and older people. With this new law applications like this are no longer acceptable.
 
 Model:
 * type: alert | toast | snackbar (we use the type name as defined by the framework itself)
 * class:  info | warning | error | danger | success (we use the class name as defined by the framework itself)
 * title: optional  
-* message: optional
+* message: required
 
 Challenges: are these elements visible or not? Complex css and javascript dynamics can make things invisible.
 
 Test environments for alerts
+* React
 * Angular:
   * https://ngx-toastr.vercel.app/
   * https://material.angularjs.org/latest/demo/toast
-
-## wait for Events
-
-The wait for Events function waits for the application to be stable with a timeout. Currently we use a generic approach but we could also use framework specific approaches. This may be better and requirers further investigation.
-
-angular: https://angular.dev/api/core/Testability
-
-Find out if this will work and if there are more frameworks that have similar solutions.
+* Vue.js
