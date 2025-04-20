@@ -167,6 +167,12 @@ This approach necessitates the continuous or frequent collection of diverse info
 
 This methodology enables a data-driven testing approach, potentially leveraging decision tables.
 
+Current work in progress:
+
+- [x] Add support for reporting logLevel
+- [ ] Add alert handling
+- [ ] Add mechanism for detecting javascript framework
+
 ## wait for Events
 
 The wait for Events function waits for the application to be stable with a timeout. Currently we use a generic approach but we could also use framework specific approaches. This may be better and requirers further investigation.
@@ -189,9 +195,9 @@ Additionally, the system will capture triggering and timing information:
 * Why and when the alert is shown.
 * How long the alert remains visible.
 
-How to identify alerts: We have to find these elements in the html content. They appear dynamicly and live only for a limited time. So it requires special attention. I will start with Angular and then add more frameworks later on.
+How to identify alerts: We have to find these elements in the html content. Do we focus on element names (div, Alert), specific classes (alert-\*, toast-\*), aria-roles or a smart combination of all of these? They can also appear dynamicly and show only for a limited time and then disapear again. So it requires special attention. I will start with Angular because that is in my demo app and then add more frameworks later on. 
 
-Angular:
+### Angular
 
 | Type             | Elements   |
 | ---------------- | ---------- |
@@ -202,8 +208,9 @@ Angular:
 
 Typical angular code examples:
 ```html
-<!-- toast alway comes in a container -->
+<!-- proper toasts alway come in a container -->
 <div class='toast-container'>
+  <!-- this can repeat -->
   <div class='ngx-toastr toast-info'>
     <div class='toast-title aria-label='MyTitle'>MyTitle</div>
     <div class='toast-message' role='alert'>MyMessage</div>
@@ -213,7 +220,7 @@ Typical angular code examples:
 <!-- alerts can appear everwhere -->
 <div class='alert alert-danger' role='alert'>An alert</div>
 
-<!-- same with snackbars -->
+<!-- same with snackbars: usually on the corner near your house -->
 <simple-snack-bar class="mat-mdc-simple-snack-bar">
   <div matsnackbarlabel="" class="mat-mdc-snack-bar-label mdc-snackbar__label">
     Disco party!
@@ -230,16 +237,24 @@ Typical angular code examples:
 </simple-snack-bar>
 ```
 
-The Shop application is also based on Angular and has a weird structure. Its not even user friendly.
+The Shop application is also based on Angular and has a weird structure. Its not even user friendly and there fore not compliant.
 
 ```html
 <!-- Plain message bit weird formatting not even a proper message just visible text -->
 <div class='ng-star-inserted'>Some message</div>
 ```
 
->Note: The web application that we use for testing our framework sometimes creates a weird and unstructured message format. The `European Accessibility Act (EAA)` is a European Union directive ([EU 2019/882](https://commission.europa.eu/strategy-and-policy/policies/justice-and-fundamental-rights/disability/union-equality-strategy-rights-persons-disabilities-2021-2030_en)) that aims to harmonize accessibility requirements for a range of products and services, making them more accessible to persons with disabilities and older people. With this new law applications like this are no longer acceptable.
+>[!NOTE]: *The web application that we use for testing our framework sometimes creates a weird and unstructured message format. The `European Accessibility Act (EAA)` is a European Union directive ([EU 2019/882](https://commission.europa.eu/strategy-and-policy/policies/justice-and-fundamental-rights/disability/union-equality-strategy-rights-persons-disabilities-2021-2030_en)) that aims to harmonize accessibility requirements for a range of products and services, making them more accessible to persons with disabilities and older people.*
 
-Model:
+### React
+
+```html
+<Alert icon={<CheckIcon fontSize="inherit" />} severity="success">
+  Here is a gentle confirmation that your action was successful.
+</Alert>
+```
+
+### Model:
 * type: alert | toast | snackbar (we use the type name as defined by the framework itself)
 * class:  info | warning | error | danger | success (we use the class name as defined by the framework itself)
 * title: optional  
