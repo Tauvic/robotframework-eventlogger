@@ -188,16 +188,47 @@ I'm currently developing a system for logging alerts and messages, which require
 * **Appearance and Purpose**: How the alert is displayed and its intended function.
 * **Content**: Whether it has a title and/or a text message.
 * **Functionality**: Any interactive elements, such as buttons and timer effects.
-* **Accessibility**: Support for accessibility standards (e.g., `aria-role="alert"`).
+* **Accessibility**: Support for accessibility standards (e.g., `aria role="alert"`).
 
 Additionally, the system will capture triggering and timing information:
 
 * Why and when the alert is shown.
 * How long the alert remains visible.
 
-How to identify alerts: We have to find these elements in the html content. Do we focus on element names (div, Alert), specific classes (alert-\*, toast-\*), aria-roles or a smart combination of all of these? They can also appear dynamicly and show only for a limited time and then disapear again. So it requires special attention. I will start with Angular because that is in my demo app and then add more frameworks later on. 
+How can we identify alerts: We have to find these elements in the html content. The challenge is that there is no single definition of a alert, no common format. Do we focus on element names (div, Alert), specific classes (alert-\*, toast-\*), aria-roles or a smart combination of all of these? They can also appear dynamicly and show only for a limited time and then disapear again. The dynamicly added alerts and messages may also still exist in the DOM but no longer be visible. This because another layer of a multipage application is on top and the alert is no longer visible. All these issues requirer special attention. I will start with Angular because that is in my demo app and then add more frameworks later on. 
 
-### Angular
+### Alert State Model
+
+The lifecycle of an alert can be represented by the following state machine:
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> Created : create
+    state Created {
+        [*] --> visible
+        visible --> invisible : hide
+        invisible --> visible : show
+        visible --> [*] : remove
+        invisible --> [*] : remove
+    }
+
+    Created --> Destroyed
+    Destroyed --> [*]
+```
+
+State Transitions:
+
+* `create`: An alert instance is created in the system.
+visible: The alert is currently displayed and providing information to the user on the active page view.
+* `hide`: The alert is temporarily hidden, often when navigating away from the relevant page view in a multi-page application. While invisible, the alert may still exist in the DOM.
+* `show`: A previously hidden alert becomes visible again, typically when returning to the page view where it was initially displayed.
+* `remove`: The alert is removed from the current view, although it might still exist in the application's state.
+* `Destroyed`: The alert is permanently removed from the system and its resources are potentially reclaimed.
+
+This state model clarifies that an alert's visibility is tied to the current page view. An alert can be `visible` when its associated information is relevant to the user's current context. Upon navigating away, it might become `invisible` but can reappear (`visible`) if the user returns to the relevant view. Eventually, the alert will be `removed` and potentially `Destroyed`.
+
+### Angular framework
 
 | Type             | Elements   |
 | ---------------- | ---------- |
@@ -212,13 +243,14 @@ Typical angular code examples:
 <div class='toast-container'>
   <!-- this can repeat -->
   <div class='ngx-toastr toast-info'>
+    <!-- we see a proper aria label and role here -->
     <div class='toast-title aria-label='MyTitle'>MyTitle</div>
     <div class='toast-message' role='alert'>MyMessage</div>
   </div>
 </div>
 
-<!-- alerts can appear everwhere -->
-<div class='alert alert-danger' role='alert'>An alert</div>
+<!-- alerts can appear everwhere, this alert has no aria role -->
+<div class='alert alert-danger'>An alert</div>
 
 <!-- same with snackbars: usually on the corner near your house -->
 <simple-snack-bar class="mat-mdc-simple-snack-bar">
@@ -244,9 +276,10 @@ The Shop application is also based on Angular and has a weird structure. Its not
 <div class='ng-star-inserted'>Some message</div>
 ```
 
->[!NOTE]: *The web application that we use for testing our framework sometimes creates a weird and unstructured message format. The `European Accessibility Act (EAA)` is a European Union directive ([EU 2019/882](https://commission.europa.eu/strategy-and-policy/policies/justice-and-fundamental-rights/disability/union-equality-strategy-rights-persons-disabilities-2021-2030_en)) that aims to harmonize accessibility requirements for a range of products and services, making them more accessible to persons with disabilities and older people.*
+> [!NOTE] 
+> *The web application that we use for testing our framework sometimes creates a weird and unstructured message format. The `European Accessibility Act (EAA)` is a European Union directive ([EU 2019/882](https://commission.europa.eu/strategy-and-policy/policies/justice-and-fundamental-rights/disability/union-equality-strategy-rights-persons-disabilities-2021-2030_en)) that aims to harmonize accessibility requirements for a range of products and services, making them more accessible to persons with disabilities and older people.*
 
-### React
+### React framework
 
 ```html
 <Alert icon={<CheckIcon fontSize="inherit" />} severity="success">

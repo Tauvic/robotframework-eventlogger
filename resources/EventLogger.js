@@ -317,7 +317,6 @@ async function initEventLogger(
         }
     });
 
-
     // listen for console messages
     context.on('console', async (message) => {
         /** @type {ContextData} */

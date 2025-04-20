@@ -144,11 +144,10 @@ class EventLogger:
 
         args = " ".join([str(arg) for arg in kw.args])    
         logger.info(f"Start: {kw.name} {args}",also_console=True)
-        if  len(args) > 60:
+        if  len(args) > 80:
           details = f'<details><summary>arguments</summary>{html.escape(args)}</details>'
         else: 
           details = html.escape(args) 
-        details = ''
 
         self.local_events.append({'time': datetime.now(timezone.utc).isoformat(), 
                                   'level': self.level,
@@ -204,10 +203,8 @@ class EventLogger:
       self.level +=1       
  
       details = " ".join([str(arg) for arg in kw.args])
-      if  len(args) > 60:
-        details = f'<details><summary>arguments</summary>{args}</details>'
-
-      details=''       
+      if  len(args) > 80:
+        details = f'<details><summary>arguments</summary>{args}</details>'     
       
       msg = f"Start: {kw.name} {details}" 
       self.local_events.append({'time': datetime.now(timezone.utc).isoformat(), 
@@ -215,7 +212,6 @@ class EventLogger:
                                 'event': 'script', 
                                 'type': 'INFO', 
                                 'data': msg})
-
 
     def end_library_keyword(self, kw:running.Keyword, impl, result:result.Keyword):
 
