@@ -195,7 +195,22 @@ Additionally, the system will capture triggering and timing information:
 * Why and when the alert is shown.
 * How long the alert remains visible.
 
-How can we identify alerts: We have to find these elements in the html content. The challenge is that there is no single definition of a alert, no common format. Do we focus on element names (div, Alert), specific classes (alert-\*, toast-\*), aria-roles or a smart combination of all of these? They can also appear dynamicly and show only for a limited time and then disapear again. The dynamicly added alerts and messages may also still exist in the DOM but no longer be visible. This because another layer of a multipage application is on top and the alert is no longer visible. All these issues requirer special attention. I will start with Angular because that is in my demo app and then add more frameworks later on. 
+### Identifying Alerts in HTML Content
+
+A key challenge in logging alerts is their identification within the HTML structure. There is no single, universally defined standard or common format for alert elements. To reliably locate these elements, we need to consider various strategies:
+
+* **ARIA Roles**: This is the preferred approach. Identify elements that explicitly declare their semantic meaning as an alert using ARIA roles (e.g., `role="alert"`)?
+* **Element Names**: Should we focus on common HTML element names often used for alerts, such as `div` or custom elements like `<Alert>`?
+* **CSS Classes**: Should we target elements based on specific CSS class naming conventions, such as prefixes like `alert-*` or `toast-*`?
+* **Smart Combination**: Is the most robust approach a strategic combination of these methods, potentially involving prioritization or a weighted scoring system to improve accuracy and minimize false positives?
+
+Furthermore, alerts often exhibit dynamic behavior:
+
+* They can appear and disappear dynamically based on user interactions or application state.
+* Their visibility can be time-limited.
+* Dynamically added alerts might persist in the DOM even when they are no longer visually apparent to the user. This can occur in multi-page applications where a new layer or page transition obscures the underlying alert.
+
+These complexities necessitate careful consideration and a robust identification strategy. The initial implementation will concentrate on identifying alerts within **Angular** applications, given its presence in the demo application. Support for other frameworks will be integrated in subsequent development phases.
 
 ### Alert State Model
 
@@ -220,13 +235,13 @@ stateDiagram-v2
 State Transitions:
 
 * `create`: An alert instance is created in the system.
-visible: The alert is currently displayed and providing information to the user on the active page view.
-* `hide`: The alert is temporarily hidden, often when navigating away from the relevant page view in a multi-page application. While invisible, the alert may still exist in the DOM.
+* `visible`: The alert is currently displayed and providing information to the user on the active page view.
+* `hide`: The alert is temporarily hidden, often when navigating away from the relevant page view in a multi-page application. While invisible, the alert still exist in the DOM.
 * `show`: A previously hidden alert becomes visible again, typically when returning to the page view where it was initially displayed.
-* `remove`: The alert is removed from the current view, although it might still exist in the application's state.
-* `Destroyed`: The alert is permanently removed from the system and its resources are potentially reclaimed.
+* `remove`: The alert is being removed from the current view.
+* `Destroyed`: The alert is now permanently removed from the system.
 
-This state model clarifies that an alert's visibility is tied to the current page view. An alert can be `visible` when its associated information is relevant to the user's current context. Upon navigating away, it might become `invisible` but can reappear (`visible`) if the user returns to the relevant view. Eventually, the alert will be `removed` and potentially `Destroyed`.
+This state model clarifies that an alert's visibility is tied to a context, the current page view. An alert can be `visible` when its associated information is relevant to the user's current context. Upon navigating away, it will become `invisible` but can reappear (`visible`) if the user returns to the relevant view. Eventually, the alert will be `removed` and `Destroyed`.
 
 ### Angular framework
 
