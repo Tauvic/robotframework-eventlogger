@@ -168,7 +168,7 @@ async function initEventLogger(
 
                     console.debug(`Mutation cause=${cause} tag=${node.tagName} class=${node.className}`);  
 
-                    const isVisible = isGenerallyVisible(node);  
+                    const isVisible = isElementFullyVisible(node);  
 
                     alertData = {type: msgType,class: msgClass,visible:isVisible,title: msgTitle,text: msgText};
                     node.dataset.alert = JSON.stringify(alertData);
@@ -220,9 +220,9 @@ async function initEventLogger(
         // call `observe()`, passing it the element to observe, and the options object
         observer.observe(window.document, {
             subtree: true,
-            childList: true,
+            //childList: true,
             attributes: true,
-            //attributeFilter: ["display", "visibility"],
+            //attributeFilter: ["style"],
         });
 
     }, context);

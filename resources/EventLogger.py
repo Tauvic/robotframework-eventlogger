@@ -31,8 +31,7 @@ class EventLogger:
       """
       logger.info(f"Event Listener init", also_console=True)
       self.waitAfter = None
-      self.ommit = ['BuiltIn','Collections']
-      self.pageOpen= False
+      self.ommit = [] #['BuiltIn','Collections']
       self.level = 0
       self.local_events = []  # Local list to store events
       self.logLevel:LogLevel = LogLevel.INFO
@@ -145,18 +144,15 @@ class EventLogger:
         args = " ".join([str(arg) for arg in kw.args])    
         logger.info(f"Start: {kw.name} {args}",also_console=True)
         if  len(args) > 80:
-          details = f'<details><summary>arguments</summary>{html.escape(args)}</details>'
-        else: 
-          details = html.escape(args) 
+          args = f'<details><summary>arguments</summary>{args}</details>'
 
         self.local_events.append({'time': datetime.now(timezone.utc).isoformat(), 
                                   'level': self.level,
                                   'event': 'script', 
                                   'type': 'INFO', 
-                                  'data': f"Start: {kw.name} {details}"})
+                                  'data': f"Start: {kw.name} {args}"})
       except  Exception as ex:
-        logger.warning(ex)
-        self.pageOpen = False             
+        logger.warning(ex)        
 
     def end_user_keyword(self, kw:running.Keyword, impl, result:result.Keyword):
 
@@ -171,30 +167,13 @@ class EventLogger:
                                   'type': 'INFO', 
                                   'data': msg})               
       except  Exception as ex:
-        logger.warning(ex)
-        self.pageOpen = False                    
+        logger.warning(ex)                 
       finally:
         if (self.level > 0): self.level -=1   
   
     def start_library_keyword(self, kw:running.Keyword, impl, result:result.Keyword):
       
       if result.status in ['FAIL','SKIP','NOT RUN']: return
-
-      libname = result.libname
-          
-      if libname == 'Browser':
-          if kw.name == 'New Page':
-            self.pageOpen = True
-          if kw.name in ['Close Page','Close Context','Close Browser']:
-            self.pageOpen = False
-
-          if kw.name not in ['Click','Go To','Go Back','Go Forward']: return
-
-      if 'Teardown' in kw.name:
-          self.pageOpen = False
-
-      if libname in self.ommit:
-          return      
       
       args = " ".join([str(arg) for arg in kw.args])
       msg = f"Start: {kw.name} {args}"  
@@ -202,11 +181,10 @@ class EventLogger:
 
       self.level +=1       
  
-      details = " ".join([str(arg) for arg in kw.args])
       if  len(args) > 80:
-        details = f'<details><summary>arguments</summary>{args}</details>'     
+        args = f'<details><summary>arguments</summary>{args}</details>'     
       
-      msg = f"Start: {kw.name} {details}" 
+      msg = f"Start: {kw.name} {args}" 
       self.local_events.append({'time': datetime.now(timezone.utc).isoformat(), 
                                 'level': self.level,
                                 'event': 'script', 
@@ -215,26 +193,10 @@ class EventLogger:
 
     def end_library_keyword(self, kw:running.Keyword, impl, result:result.Keyword):
 
-      if result.status in ['SKIP','NOT RUN']: return
-
-      libname = result.libname
-          
-      if libname == 'Browser':
-          if kw.name == 'New Page':
-            self.pageOpen = True
-          if kw.name in ['Close Page','Close Context','Close Browser']:
-            self.pageOpen = False
-
-          if kw.name not in ['Click','Go To','Go Back','Go Forward']: return
-
-      if 'Teardown' in kw.name:
-          self.pageOpen = False
-
-      if libname in self.ommit:
-          return    
+      if result.status in ['SKIP','NOT RUN']: return 
       
       # Auto start wait for Events
-      if self.pageOpen and self.waitAfter and f"{libname}.{kw.name}" in self.waitAfter:           
+      if self.waitAfter and f"{result.libname}.{kw.name}" in self.waitAfter:           
         try:
           BuiltIn().run_keyword('Browser.waitForEvents') 
         except  Exception as ex:

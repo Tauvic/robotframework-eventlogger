@@ -12,6 +12,7 @@ TC01 Toast
     Type Text  selector=id=toastTitle    txt=MyTitle_1
     Type Text  selector=id=toastMessage  txt=MyMessage_1
     Type Text  selector=id=toastTimeout  txt=1500
+    Check Checkbox  selector=id=progressBar
     Check Checkbox  selector=id=typeinfo
     Click  text=Open Toast
 
@@ -22,10 +23,14 @@ TC01 Toast
     #Click  text=Open Toast    
 
     Take Screenshot
+    Sleep  1 seconds  
+    Take Screenshot       
     ${alert}  Get Element By Role    alert
     #Wait For Elements State  ${alert}  detached
     Sleep  3 seconds 
     Take Screenshot
+
+    
  
 
 
