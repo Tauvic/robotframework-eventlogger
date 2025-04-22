@@ -184,8 +184,10 @@ Step 4 Payment
     ${l_selector}    Get Element By Role    combobox    name=Monthly Installments
     Select Options By    ${l_selector}    text    ${user.installments}
 
-    ${l_button}    Get Element By Role    button    name=Confirm
-    Click    ${l_button}
+    ${l_confirmMethod}    Get Element By Role    button    name=Confirm
+    Click    ${l_confirmMethod}
+
+    Take Screenshot
 
     ${l_selector}    Get Element By Role    combobox    name=Payment method
     Select Options By    ${l_selector}    text    ${user.payment}
@@ -202,9 +204,10 @@ Step 4 Payment
     # Verify: Payment was successful
     Get Element By    text    Payment was successful
 
-    ${l_confirm}    Get Element By Role    button    name=Confirm
-    Click    ${l_confirm}
+    ${l_confirmPayment}    Get Element By Role    button    name=Confirm
+    Click    ${l_confirmPayment}
 
+    Take Screenshot
 
     # Wait of alert message
     Get Element By    text    Thanks for your order! Your invoice number is INV-

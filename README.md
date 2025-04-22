@@ -212,6 +212,8 @@ Furthermore, alerts often exhibit dynamic behavior:
 
 These complexities necessitate careful consideration and a robust identification strategy. The initial implementation will concentrate on identifying alerts within **Angular** applications, given its presence in the demo application. Support for other frameworks will be integrated in subsequent development phases.
 
+For checking vsisibility read: https://coreui.io/blog/how-to-check-if-an-element-is-visible-in-javascript/
+
 ### Alert State Model
 
 The lifecycle of an alert can be represented by the following state machine:
@@ -233,13 +235,15 @@ stateDiagram-v2
 
 State Transitions:
 
-* `create`: An alert instance is created in the system and now `Exists`.
+* `create`: An alert instance is created in the system as a DOM element (or group of elements) and now `Exists`.
 * `visible`: The alert is currently displayed and provides information to the user on the active page view.
 * `hide`: The alert is temporarily hidden, often when navigating away from the relevant page view in a multi-page application. While `invisible`, the alert still `Exists` in the DOM.
 * `show`: A previously hidden alert becomes visible again, typically when returning to the page view where it was initially displayed.
 * `remove`: The alert is being permanently removed and destroyed.
 
 This state model clarifies that an alert's visibility is tied to a context, the current page view. An alert can be `visible` when its associated information is relevant to the user's current context. Upon navigating away, it will become `invisible` but can reappear (`visible`) if the user returns to the relevant view. Eventually, the alert will be `removed` and `Destroyed`.
+
+visibilium omnium et invisibilium.
 
 ### Angular framework
 

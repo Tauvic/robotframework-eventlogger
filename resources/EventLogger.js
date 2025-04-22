@@ -83,12 +83,12 @@ async function initEventLogger(
     // create data structure to store results in context
     /** @type {ContextData} */
     context['req'] = {
-        alerts: alerts,          // alerts to check for
-        requestID: 0,           // request ID to check for
+        alerts: alerts,             // alerts to check for
+        requestID: 0,               // request ID to check for
         activeRequests: new Set(),  // active requests to check for
-        lastEventTime: 0,        // last event time to check for
-        maxWait: maxWait,         // maximum wait time to check for events
-        minIdle: minIdle,         // minimum idle time to check for events
+        lastEventTime: 0,           // last event time to check for
+        maxWait: maxWait,           // maximum wait time to check for events
+        minIdle: minIdle,           // minimum idle time to check for events
         waitPromise: null,
         waitIdle: null,
         waitTimeout: null,
@@ -99,92 +99,120 @@ async function initEventLogger(
 
         console.debug('addInitScript');
 
+        let alertID = 0;
+
+        const isGenerallyVisible = (element) => {
+            const style = window.getComputedStyle(element)
+            return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0'
+        }
+
+        const isVisibleInViewport = (element) => {
+            const rect = element.getBoundingClientRect()
+            return (
+                rect.top >= 0 &&
+                rect.left >= 0 &&
+                rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+                rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+            )
+        }    
+        
+        const isElementFullyVisible = (element) => {
+            return isGenerallyVisible(element) && isVisibleInViewport(element) && element.checkVisibility()
+        }
+
         // create a new instance of `MutationObserver` named `observer`,
         const observer = new MutationObserver((mutations) => {
+      
+            function checkNode(cause, node) {
 
-            // class = toast-container success error warning
-            //| Type             | Elements   |
-            //| ---------------- | ---------- |
-            //| Snackbar/Toast   | `<snack-bar-container>`, `<mat-snack-bar-container>`, `.mat-snack-bar-container`, `.toast`, `.snackbar` |
-            //| Dialog/Modal     | `<mat-dialog-container>`, `.mat-dialog-container`, `<dialog>`, `.modal`, custom selectors like `<my-dialog>` |
-            //| Alert banner     | `<div class="alert">`, `<div class="alert-success">`, `<div class="alert-danger">`, `<mat-error>`,`<mat-alert>` |
-            //| Inline error     | `<mat-error>`, `<span class="error">`, `<div class="form-error">` |            
+                let alertData = {}
 
-            function getMsgType(node) {
-                const classProp = node.className;
-                if (!classProp) return;
-                switch (true) {
-                    case classProp.includes('alert'):
-                      return 'alert';
-                    case classProp.includes('toast'):
-                      return 'toast';
-                    case classProp.includes('snack'):
-                      return 'snack';                      
+                if (!node.dataset?.alert) {
+
+                    const className = node.className;
+                    // find the word alert or toast
+                    const isAlert = /\balert\b/;
+                    const alertType = /\balert-(success|info|warning|error|danger)\b/g
+                    const isToast = /\b(toast|ngx-toastr)\b/;
+                    const toastType = /\btoast-(success|info|warning|error|danger)\b/g
+                    
+                    let   msgType = null;                    
+                    let   msgClass= null;
+                    let   msgTitle= null;
+                    let   msgText = null;           
+    
+                    if (isAlert.test(className)) {
+                        const match = className.match(alertType);
+                        if (match && match.length===1) {
+                          msgType  = 'alert'
+                          msgClass = match[0]
+                          msgText  = node.innerText.trim()
+                        }                  
+                    } else if (isToast.test(className)) {
+                        const match = className.match(toastType)
+                        if (match && match.length===1) {
+                          msgType  = 'toast'
+                          msgClass = match[0]
+                          const titleNode = node.querySelector(".toast-title");
+                          if (titleNode) {
+                            msgTitle = titleNode.innerText.trim();
+                            const msgNode = node.querySelector(".toast-message");
+                            msgText = msgNode.innerText.trim();
+    
+                          } else
+                          msgText  = node.innerText.trim()
+                        }      
+                    }
+
+                    if (!msgType) return;
+
+                    console.debug(`Mutation cause=${cause} tag=${node.tagName} class=${node.className}`);  
+
+                    const isVisible = isGenerallyVisible(node);  
+
+                    alertData = {type: msgType,class: msgClass,visible:isVisible,title: msgTitle,text: msgText};
+                    node.dataset.alert = JSON.stringify(alertData);
+    
+                } else {
+                    alertData = JSON.parse(node.dataset.alert);
                 }
-            }
 
-            function getMsgClass(node){
-                const classProp = node.className;
-                if (!classProp) return;                
-                switch (true) {
-                    case classProp.includes('info'):
-                        return('info');
-                    case classProp.includes('success'):
-                        return('success');                        
-                    case classProp.includes('warning'):
-                        return('warning');
-                    case classProp.includes('error'):
-                        return('error');                        
-                    case classProp.includes('danger'):
-                        return('danger');  
-                }                
-            }
+                console.debug(`Message: ${cause} type=${alertData.type} class=${alertData.class} visible=${alertData.visible} title=${alertData.title} text=${alertData.text}`);
 
-            console.debug('MutationObserver');
+                if (cause!=='Create' && cause!=='Remove' ) {
+                    const isVisible = isGenerallyVisible(node);  
+                    if (isVisible === alertData.visible) return;
+                    alertData.visible = isVisible;
+                    node.dataset.alert = JSON.stringify(alertData);                        
+                    cause = (isVisible) ? 'Show' : 'Hide'; 
+                }
+                console.error(`Message: ${cause} type=${alertData.type} class=${alertData.class} visible=${alertData.visible} title=${alertData.title} text=${alertData.text}`);
+            }
 
             for (const mutation of mutations) {
 
                 const node = mutation.target
-                console.debug(`Mutation tag=${node.tagName} class=${node.className}`);
+
+                //console.debug(`Mutation main tag=${node.tagName} class=${node.className}`);  
+
+                checkNode('Target',node);
 
                 switch(mutation.type) {
                     case 'childList':
                         for (const node of mutation.addedNodes) {
-                            console.debug(`Element tag=${node.tagName} class=${node.className} text=${node.innerText}`);
-                            const msgType = getMsgType(node);
-                            if (!msgType) return;                     
-                            const msgClass = getMsgClass(node); 
-                            console.debug(`Message: add type=${msgType} class=${msgClass} text=${node.innerText}`);
+                            checkNode('Create',node);
                         };
                         for (const node of mutation.removedNodes) {
-                            console.debug(`Element ${node.tagName} ${node.className} text=${node.innerText}`);
-                            const msgType = getMsgType(node);
-                            if (!msgType) return;                     
-                            const msgClass = getMsgClass(node);   
-                            console.debug(`Message: del type=${msgType} class=${msgClass} text=${node.innerText}`);
+                            if (!node.dataset?.alert) checkNode('Remove',node);
                         };
                         break;   
                     case "attributes":
-                        console.debug(mutation.target.tagName,'attributes');
+                        if (!node.dataset?.alert) checkNode('Attr',node);
                         break;
                     case "characterData":                     
-                        console.debug(mutation.target.tagName,'characterData');
+                        checkNode('Data',node);
                         break;
                 }
-            }
-
-            const result = window.document.evaluate(
-                "//div[contains(@class, 'alert') or contains(@class, 'error') or contains(@class, 'toastr') or contains(@class, 'snack')] | //mat-error | //mat-alert",
-                window.document,
-                null,
-                XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
-                null,
-                null,
-            );
-
-            for (let i = 0; i < result.snapshotLength; i++) {
-                node = result.snapshotItem(i);
-                console.debug(`node=${node.localName} class=${node.className} text=${node.innerText}`);
             }
 
         }, context);
@@ -193,6 +221,8 @@ async function initEventLogger(
         observer.observe(window.document, {
             subtree: true,
             childList: true,
+            attributes: true,
+            //attributeFilter: ["display", "visibility"],
         });
 
     }, context);
