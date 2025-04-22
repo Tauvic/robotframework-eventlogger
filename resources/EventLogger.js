@@ -99,8 +99,6 @@ async function initEventLogger(
 
         console.debug('addInitScript');
 
-        let alertID = 0;
-
         const isGenerallyVisible = (element) => {
             const style = window.getComputedStyle(element)
             return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0'
@@ -127,7 +125,12 @@ async function initEventLogger(
 
                 let alertData = {}
 
+                // check if element has not already been identified as an alert
                 if (!node.dataset?.alert) {
+
+                    // this node may be a new alert
+
+                    //TO-DO: check for aria role
 
                     const className = node.className;
                     // find the word alert or toast
@@ -139,8 +142,8 @@ async function initEventLogger(
                     let   msgType = null;                    
                     let   msgClass= null;
                     let   msgTitle= null;
-                    let   msgText = null;           
-    
+                    let   msgText = null;    
+                        
                     if (isAlert.test(className)) {
                         const match = className.match(alertType);
                         if (match && match.length===1) {
@@ -164,37 +167,22 @@ async function initEventLogger(
                         }      
                     }
 
-                    if (!msgType) return;
-
-                    console.debug(`Mutation cause=${cause} tag=${node.tagName} class=${node.className}`);  
+                    if (!msgType) return; // return if it is not an alert
 
                     const isVisible = isElementFullyVisible(node);  
-
                     alertData = {type: msgType,class: msgClass,visible:isVisible,title: msgTitle,text: msgText};
                     node.dataset.alert = JSON.stringify(alertData);
     
                 } else {
                     alertData = JSON.parse(node.dataset.alert);
+                    alertData.visible = isGenerallyVisible(node); 
                 }
 
-                console.debug(`Message: ${cause} type=${alertData.type} class=${alertData.class} visible=${alertData.visible} title=${alertData.title} text=${alertData.text}`);
-
-                if (cause!=='Create' && cause!=='Remove' ) {
-                    const isVisible = isGenerallyVisible(node);  
-                    if (isVisible === alertData.visible) return;
-                    alertData.visible = isVisible;
-                    node.dataset.alert = JSON.stringify(alertData);                        
-                    cause = (isVisible) ? 'Show' : 'Hide'; 
-                }
                 console.error(`Message: ${cause} type=${alertData.type} class=${alertData.class} visible=${alertData.visible} title=${alertData.title} text=${alertData.text}`);
             }
 
             for (const mutation of mutations) {
-
                 const node = mutation.target
-
-                //console.debug(`Mutation main tag=${node.tagName} class=${node.className}`);  
-
                 checkNode('Target',node);
 
                 switch(mutation.type) {
@@ -203,14 +191,12 @@ async function initEventLogger(
                             checkNode('Create',node);
                         };
                         for (const node of mutation.removedNodes) {
-                            if (!node.dataset?.alert) checkNode('Remove',node);
+                            checkNode('Remove',node);
                         };
                         break;   
                     case "attributes":
-                        if (!node.dataset?.alert) checkNode('Attr',node);
                         break;
                     case "characterData":                     
-                        checkNode('Data',node);
                         break;
                 }
             }
@@ -220,9 +206,7 @@ async function initEventLogger(
         // call `observe()`, passing it the element to observe, and the options object
         observer.observe(window.document, {
             subtree: true,
-            //childList: true,
-            attributes: true,
-            //attributeFilter: ["style"],
+            childList: true
         });
 
     }, context);
