@@ -71,7 +71,7 @@ async function initEventLogger(
     //  Dom changes (used for alerts, warnings, info messages, toast messages)
     //  Console messages
 
-    if ('req' in context) {
+    if ('cfg' in context) {
         //Prevent running this twice
         //We assume that the context is not reused in the same test
         logger(`Init API Requests called twice !! `);
@@ -82,7 +82,7 @@ async function initEventLogger(
 
     // create data structure to store results in context
     /** @type {ContextData} */
-    context['req'] = {
+    context['cfg'] = {
         alerts: alerts,             // alerts to check for
         requestID: 0,               // request ID to check for
         activeRequests: new Set(),  // active requests to check for
@@ -97,14 +97,15 @@ async function initEventLogger(
 
     await context.addInitScript(context => {
 
-        console.debug('addInitScript');
+        // This script runs in the browser context, not in the Node.js context, so context does not work here
+        // This is where we will observe DOM changes and log them
 
-        const isGenerallyVisible = (element) => {
+        function isGenerallyVisible(element) {
             const style = window.getComputedStyle(element)
             return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0'
         }
 
-        const isVisibleInViewport = (element) => {
+        function isVisibleInViewport(element) {
             const rect = element.getBoundingClientRect()
             return (
                 rect.top >= 0 &&
@@ -114,9 +115,26 @@ async function initEventLogger(
             )
         }    
         
-        const isElementFullyVisible = (element) => {
+        function isElementFullyVisible(element) {
             return isGenerallyVisible(element) && isVisibleInViewport(element) && element.checkVisibility()
         }
+
+        function showStatus(alertData) {
+            const wasVisible = alertData.visible;
+            const isVisible = isElementFullyVisible(alertData.node);
+            if (isVisible === true && wasVisible !== true) {
+                alertData.visible = isVisible; // update the visibility status
+                console.info('Alert: Updated',alertData);
+            }
+            if (isVisible === false && wasVisible == true) {
+                alertData.visible = isVisible; // update the visibility status
+                console.info('Alert: Updated',alertData);
+            }
+        }
+
+        alerts = {};
+        alertID = 0;
+        alertTimer = null;
 
         // create a new instance of `MutationObserver` named `observer`,
         const observer = new MutationObserver((mutations) => {
@@ -126,7 +144,7 @@ async function initEventLogger(
                 let alertData = {}
 
                 // check if element has not already been identified as an alert
-                if (!node.dataset?.alert) {
+                if (!node.dataset?.alertID) {
 
                     // this node may be a new alert
 
@@ -169,19 +187,50 @@ async function initEventLogger(
 
                     if (!msgType) return; // return if it is not an alert
 
-                    const isVisible = isElementFullyVisible(node);  
-                    alertData = {type: msgType,class: msgClass,visible:isVisible,title: msgTitle,text: msgText};
-                    node.dataset.alert = JSON.stringify(alertData);
+                    const newID = ++alertID;
+                    alertData = {alert: newID, 
+                                 visible:isElementFullyVisible(node),
+                                 title: msgTitle,
+                                 text: msgText,
+                                 type: msgType,
+                                 class: msgClass, 
+                                 node:node};
+                    node.dataset.alertID = newID;
+                    alerts[newID] = alertData; // store the alert in the alerts array
+    
+                    console.info('Alert: Created',alertData);
+
+                    if (Object.keys(alerts).length === 1) {
+                        alertTimer = setInterval(() => {
+
+                            for (const [alertId, alertData] of Object.entries(alerts)) {
+                                if (document.body.contains(alertData.node)) {
+                                    showStatus(alertData);
+                                } else {
+                                    delete alerts[alertId]; // remove the alert from the alerts array
+                                    console.info(`Alert: Removed`,alertData);
+                                }
+
+                            };
+
+                            if (Object.keys(alerts).length === 0) {
+                                clearInterval(alertTimer); // stop the timer if there are no alerts
+                                alertTimer = null;
+                                console.info(`Alert check: Cleared all alerts`);
+                            }
+                        }, 50); 
+                    }
     
                 } else {
-                    alertData = JSON.parse(node.dataset.alert);
-                    alertData.visible = isGenerallyVisible(node); 
+                    alertData = alerts[node.dataset.alertID]
+                    showStatus(alertData);
                 }
 
-                console.error(`Message: ${cause} type=${alertData.type} class=${alertData.class} visible=${alertData.visible} title=${alertData.title} text=${alertData.text}`);
+                //console.error(`Message: ${cause} type=${alertData.type} class=${alertData.class} visible=${alertData.visible} title=${alertData.title} text=${alertData.text}`);
             }
 
             for (const mutation of mutations) {
+
                 const node = mutation.target
                 checkNode('Target',node);
 
@@ -216,12 +265,12 @@ async function initEventLogger(
         if (request.resourceType() === 'xhr') {
 
             /** @type {ContextData} */
-            const req = context.req;
+            const cfg = context.cfg;
 
-            req.requestID += 1;
-            request.requestID = req.requestID;
-            req.activeRequests.add(request.requestID);
-            req.lastEventTime = Date.now();
+            cfg.requestID += 1;
+            request.requestID = cfg.requestID;
+            cfg.activeRequests.add(request.requestID);
+            cfg.lastEventTime = Date.now();
 
             let content = request.postDataJSON() || request.postData();
             if (content) content = JSON.stringify(content, null, 2);
@@ -236,12 +285,12 @@ async function initEventLogger(
                 failure: null,
             }
 
-            req.events.push({ 'time': new Date(), 'event': 'request', 'type': 'INFO', 'data': rqd });
-            //req.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `waitIdle size=${req.activeRequests.size} promise=${req.waitPromise} id=${req.waitIdle}` });
-            if (req.waitIdle) {
-                //req.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `clear waitIdle id=${req.waitIdle}` });
-                clearTimeout(context.req.waitIdle);
-                req.waitIdle = null;
+            cfg.events.push({ 'time': new Date(), 'event': 'request', 'type': 'INFO', 'data': rqd });
+            //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `waitIdle size=${cfg.activeRequests.size} promise=${cfg.waitPromise} id=${cfg.waitIdle}` });
+            if (cfg.waitIdle) {
+                //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `clear waitIdle id=${cfg.waitIdle}` });
+                clearTimeout(context.cfg.waitIdle);
+                cfg.waitIdle = null;
             }
         }
     });
@@ -250,9 +299,9 @@ async function initEventLogger(
     context.on('requestfailed', request => {
         if (request.resourceType() === 'xhr') {
             /** @type {ContextData} */
-            const req = context.req;
-            req.activeRequests.delete(request.requestID);
-            req.lastEventTime = Date.now();
+            const cfg = context.cfg;
+            cfg.activeRequests.delete(request.requestID);
+            cfg.lastEventTime = Date.now();
 
             let content = request.postDataJSON() || request.postData();
             if (content) content = JSON.stringify(content, null, 2);
@@ -267,11 +316,11 @@ async function initEventLogger(
                 failure: request.failure().errorText,
             }
 
-            req.events.push({ 'time': new Date(), 'event': 'request', 'type': 'WARN', 'data': rqd });
-            //req.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `waitIdle size=${req.activeRequests.size} promise=${req.waitPromise}` });
-            if (req.activeRequests.size === 0 && context.req.waitPromise) {
-                req.waitIdle = setTimeout(req.waitPromise.resolve, req.minIdle);
-                //req.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `set waitIdle id=${req.waitIdle} time=${req.minIdle}`  });
+            cfg.events.push({ 'time': new Date(), 'event': 'request', 'type': 'WARN', 'data': rqd });
+            //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `waitIdle size=${cfg.activeRequests.size} promise=${cfg.waitPromise}` });
+            if (cfg.activeRequests.size === 0 && context.cfg.waitPromise) {
+                cfg.waitIdle = setTimeout(cfg.waitPromise.resolve, cfg.minIdle);
+                //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `set waitIdle id=${cfg.waitIdle} time=${cfg.minIdle}`  });
             }
         }
     });
@@ -280,10 +329,10 @@ async function initEventLogger(
     context.on('requestfinished', async request => {
         if (request.resourceType() === 'xhr') {
             /** @type {ContextData} */
-            const req = context.req
+            const cfg = context.cfg
 
-            req.activeRequests.delete(request.requestID);
-            req.lastEventTime = Date.now();
+            cfg.activeRequests.delete(request.requestID);
+            cfg.lastEventTime = Date.now();
 
             let content = request.postDataJSON() || request.postData();
             if (content) content = JSON.stringify(content, null, 2);            
@@ -313,7 +362,6 @@ async function initEventLogger(
                 }
             }
 
-
             /** @type {ResponseData} */
             const rsd = {
                 status: resp.status(),
@@ -321,11 +369,11 @@ async function initEventLogger(
                 ok: resp.ok(),
                 content: content
             }
-            req.events.push({ 'time': new Date(), 'event': 'response', 'type': 'INFO', 'data': [rqd,rsd] });
-            //req.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `waitIdle size=${req.activeRequests.size} promise=${req.waitPromise}` });
-            if (req.activeRequests.size === 0 && context.req.waitPromise) {
-                req.waitIdle = setTimeout(req.waitPromise.resolve, req.minIdle);
-                //req.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `set waitIdle id=${req.waitIdle} time=${req.minIdle}`  });
+            cfg.events.push({ 'time': new Date(), 'event': 'response', 'type': 'INFO', 'data': [rqd,rsd] });
+            //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `waitIdle size=${cfg.activeRequests.size} promise=${cfg.waitPromise}` });
+            if (cfg.activeRequests.size === 0 && context.cfg.waitPromise) {
+                cfg.waitIdle = setTimeout(cfg.waitPromise.resolve, cfg.minIdle);
+                //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `set waitIdle id=${cfg.waitIdle} time=${cfg.minIdle}`  });
             }
 
         }
@@ -334,10 +382,10 @@ async function initEventLogger(
     // listen for console messages
     context.on('console', async (message) => {
         /** @type {ContextData} */
-        const req = context.req;
+        const cfg = context.cfg;
 
         if (message.text() != "JSHandle@error") {
-            req.events.push({ 'time': new Date(), 'event': 'console', 'type': message.type().toUpperCase(), 'data': message.text() });
+            cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': message.type().toUpperCase(), 'data': message.text() });
             return;
         };
 
@@ -346,16 +394,16 @@ async function initEventLogger(
         }));
 
         msg = `${messages}`
-        req.events.push({ 'time': new Date(), 'event': 'console', 'type': message.type().toUpperCase(), 'data': msg });
+        cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': message.type().toUpperCase(), 'data': msg });
     });
 
     context.on('page', page => {
-        context.req.events.push({ 'time': new Date(), 'event': 'console', 'type': 'INFO', 'data': `New page created: ${page.url()}` });
+        //context.cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'INFO', 'data': `New page created: ${page.url()}` });
         page.on('framenavigated', frame => {
-            context.req.events.push({ 'time': new Date(), 'event': 'console', 'type': 'INFO', 'data': `Frame navigated: ${frame.url()}` });
+            context.cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'INFO', 'data': `Frame navigated: ${frame.url()}` });
         });
         page.on('pageerror', data => {
-            context.req.events.push({ 'time': new Date(), 'event': 'console', 'type': 'ERROR', 'data': data.message });
+            context.cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'ERROR', 'data': data.message });
         });
     });
 
@@ -364,7 +412,7 @@ async function initEventLogger(
 
 async function checkAlerts(context, page, path, timeout = 100) {
 
-    //context.req.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': 'check Alerts' });
+    //context.cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': 'check Alerts' });
 
     try {
         await page.locator(path).waitFor({ state: 'visible', timeout: timeout });
@@ -384,37 +432,37 @@ async function checkAlerts(context, page, path, timeout = 100) {
 
 /**
  * Wait for all active requests to finish and for the minimum idle time to pass.
- * @param {ContextData} req
+ * @param {ContextData} cfg
  */
-function waitPromise(req) {
+function waitPromise(cfg) {
 
     return new Promise((resolve, reject) => {
 
         // share this promise with the request handler
         // so that we can resolve it when all requests are done
-        req.waitPromise = { resolve, reject };
+        cfg.waitPromise = { resolve, reject };
 
-        const waiting = req.activeRequests.size;      // Number of requests in flight
-        const idle = Date.now() - req.lastEventTime;  // Time since last event
+        const waiting = cfg.activeRequests.size;      // Number of requests in flight
+        const idle = Date.now() - cfg.lastEventTime;  // Time since last event
 
-        //req.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `wait Started waiting=${waiting} idle=${idle}` });
+        //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `wait Started waiting=${waiting} idle=${idle}` });
 
         if (waiting === 0) {
-            if (idle > req.minIdle) {
-                //req.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `wait Resolve` });
+            if (idle > cfg.minIdle) {
+                //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `wait Resolve` });
                 resolve();
                 return;
             }
             else {
-                req.waitIdle = setTimeout(resolve, req.minIdle - idle);
-                //req.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `wait set id=${req.waitIdle} time=${req.minIdle - idle}` });
+                cfg.waitIdle = setTimeout(resolve, cfg.minIdle - idle);
+                //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `wait set id=${cfg.waitIdle} time=${cfg.minIdle - idle}` });
             }
         }
 
-        req.waitTimeout = setTimeout(() => {
-            reject(new Error(`waitForApiEvents: Max wait time of ${req.maxWait}ms exceeded outstanding=${[...req.activeRequests].join(',')} id=${req.waitTimeout}`));
-        }, req.maxWait);
-        //req.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `set waitTimeout id=${req.waitTimeout} time=${req.maxWait}` });
+        cfg.waitTimeout = setTimeout(() => {
+            reject(new Error(`waitForApiEvents: Max wait time of ${cfg.maxWait}ms exceeded outstanding=${[...cfg.activeRequests].join(',')} id=${cfg.waitTimeout}`));
+        }, cfg.maxWait);
+        //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `set waitTimeout id=${cfg.waitTimeout} time=${cfg.maxWait}` });
 
     });
 
@@ -423,54 +471,54 @@ function waitPromise(req) {
 // Wait for all outstanding events
 async function waitForEvents(context, page, logger) {
 
-    const req = context.req;
-    if (!req) return;
+    const cfg = context.cfg;
+    if (!cfg) return;
     const startTime = new Date();
 
     // Wait for all events that we expect to happen
     try {
         // Check for alerts first because no need to wait for API events if we fail on alerts
-        if (req.alerts) await checkAlerts(context, page, path = req.alerts);
+        if (cfg.alerts) await checkAlerts(context, page, path = cfg.alerts);
 
         const startPromise = Date.now()
 
-        await waitPromise(req);
+        await waitPromise(cfg);
 
-        req.waitPromise = null;
+        cfg.waitPromise = null;
 
-        if (req.waitIdle) {
-            //req.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `clear waitIdle id=${req.waitIdle}` });
-            clearTimeout(req.waitIdle);
-            req.waitIdle = null;
+        if (cfg.waitIdle) {
+            //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `clear waitIdle id=${cfg.waitIdle}` });
+            clearTimeout(cfg.waitIdle);
+            cfg.waitIdle = null;
         }
 
-        if (req.waitTimeout) {
-            //req.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `clear waitTimeout id=${req.waitTimeout}` });
-            clearTimeout(req.waitTimeout);
-            req.waitTimeout = null;
+        if (cfg.waitTimeout) {
+            //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `clear waitTimeout id=${cfg.waitTimeout}` });
+            clearTimeout(cfg.waitTimeout);
+            cfg.waitTimeout = null;
         }
 
-        //req.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `wait End delta=${Date.now()-startPromise}` });
+        //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `wait End delta=${Date.now()-startPromise}` });
         // Check for alerts again after all API responses have been processed
-        if (req.alerts) await checkAlerts(context, page, path = req.alerts);
+        if (cfg.alerts) await checkAlerts(context, page, path = cfg.alerts);
     } catch (error) {
         // usually an alert or timeout error
-        req.events.push({ 'time': new Date(), 'event': 'console', 'type': 'ERROR', 'data': error });
+        cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'ERROR', 'data': error });
         throw error;
     }
 
     const endTime = new Date();
     const delta = endTime - startTime;
 
-    req.events.push({ 'time': endTime, 'event': 'console', 'type': 'INFO', 'data': `Wait satisfied in ${delta} ms` });
+    cfg.events.push({ 'time': endTime, 'event': 'console', 'type': 'INFO', 'data': `Wait satisfied in ${delta} ms` });
 }
 
 async function reportEvents(context, logger) {
 
-    if (!('req' in context)) return;
+    if (!('cfg' in context)) return;
 
     // Return raw event data as JSON
-    return context.req.events.map(ev => ({
+    return context.cfg.events.map(ev => ({
         time: ev.time.toISOString(),
         event: ev.event,
         type: ev.type,
