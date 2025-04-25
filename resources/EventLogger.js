@@ -122,14 +122,18 @@ async function initEventLogger(
         function showStatus(alertData) {
             const wasVisible = alertData.visible;
             const isVisible = isElementFullyVisible(alertData.node);
-            if (isVisible === true && wasVisible !== true) {
-                alertData.visible = isVisible; // update the visibility status
-                console.info('Alert: Updated',alertData);
-            }
+            
+            if (isVisible === wasVisible) return; // no change in visibility
+
+            alertData.visible = isVisible; // update the visibility status
+            const delta = Date.now()-alertData.updated;
+
             if (isVisible === false && wasVisible == true) {
-                alertData.visible = isVisible; // update the visibility status
-                console.info('Alert: Updated',alertData);
+                alertData.shown += delta; // update the shown time
             }
+            console.info(`Alert: Updated`,alertData);
+            alertData.updated = Date.now(); // update the last updated time
+        
         }
 
         alerts = {};
@@ -189,12 +193,14 @@ async function initEventLogger(
 
                     const newID = ++alertID;
                     alertData = {alert: newID, 
+                                 class: msgClass,                            
                                  visible:isElementFullyVisible(node),
-                                 title: msgTitle,
-                                 text: msgText,
+                                 shown: 0,
+                                 text: msgText,                                    
+                                 title: msgTitle,                           
                                  type: msgType,
-                                 class: msgClass, 
-                                 node:node};
+                                 node:node,
+                                 updated: Date.now()};
                     node.dataset.alertID = newID;
                     alerts[newID] = alertData; // store the alert in the alerts array
     
@@ -208,7 +214,7 @@ async function initEventLogger(
                                     showStatus(alertData);
                                 } else {
                                     delete alerts[alertId]; // remove the alert from the alerts array
-                                    console.info(`Alert: Removed`,alertData);
+                                    console.info(`Alert: Removed left=[${Object.keys(alerts)}]`,alertData);
                                 }
 
                             };
@@ -216,9 +222,9 @@ async function initEventLogger(
                             if (Object.keys(alerts).length === 0) {
                                 clearInterval(alertTimer); // stop the timer if there are no alerts
                                 alertTimer = null;
-                                console.info(`Alert check: Cleared all alerts`);
+                                console.info(`Alert: Cleared all alerts`);
                             }
-                        }, 50); 
+                        }, 50); // check every 50ms
                     }
     
                 } else {

@@ -221,8 +221,8 @@ The lifecycle of an alert can be represented by the following state machine:
 ```mermaid
 stateDiagram-v2
     direction LR
-    [*] --> Exists : create
-    state Exists {
+    [*] --> Alert&nbsp;Exists : create
+    state Alert&nbsp;Exists {
         [*] --> visible
         visible --> invisible : hide
         invisible --> visible : show
@@ -230,7 +230,7 @@ stateDiagram-v2
         invisible --> [*] : remove
     }
 
-    Exists --> [*] : remove
+    Alert&nbsp;Exists --> [*] : remove
 ```
 
 State Transitions:
@@ -291,6 +291,13 @@ The Shop application is also based on Angular and has a weird structure. Its not
 ```html
 <!-- Plain message bit weird formatting not even a proper message just visible text -->
 <div class='ng-star-inserted'>Some message</div>
+```
+
+```
+04:47:54.724 console	INFO	Alert: Created {alert: 1, class: toast-success, visible: false, shown: 0, text: Product added to shopping cart.}
+04:47:54.775 console	INFO	Alert: Updated {alert: 1, class: toast-success, visible: true, shown: 0, text: Product added to shopping cart.}
+04:48:00.027 console	INFO	Alert: Updated {alert: 1, class: toast-success, visible: false, shown: 5251, text: Product added to shopping cart.}
+04:48:00.078 console	INFO	Alert: Cleared all alerts
 ```
 
 > [!NOTE] 

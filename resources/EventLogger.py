@@ -141,7 +141,7 @@ class EventLogger:
       try:
         self.level +=1
 
-        args = " ".join([str(arg) for arg in kw.args])    
+        args = " ".join([str(arg) for arg in result.args])    
         logger.info(f"Start: {kw.name} {args}",also_console=True)
         if  len(args) > 80:
           args = f'<details><summary>arguments</summary>{args}</details>'
@@ -175,7 +175,7 @@ class EventLogger:
       
       if result.status in ['FAIL','SKIP','NOT RUN']: return
       
-      args = " ".join([str(arg) for arg in kw.args])
+      args = " ".join([str(arg) for arg in result.args])
       msg = f"Start: {kw.name} {args}"  
       logger.info(msg,also_console=True)
 
@@ -222,4 +222,5 @@ class EventLogger:
                  level = tag.split(':')[1]
                  
                  #BuiltIn().run_keyword('Browser.setLogLevel',level) 
-        
+
+  
