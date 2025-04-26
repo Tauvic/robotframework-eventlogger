@@ -83,22 +83,28 @@ async function initEventLogger(
     // create data structure to store results in context
     /** @type {ContextData} */
     context['cfg'] = {
+        // alert handling
         alerts: alerts,             // alerts to check for
-        requestID: 0,               // request ID to check for
+        // request/response handling
+        requestID: 0,               // request ID
         activeRequests: new Set(),  // active requests to check for
-        lastEventTime: 0,           // last event time to check for
+        lastEventTime: 0,           // last time a request/response was received
         maxWait: maxWait,           // maximum wait time to check for events
         minIdle: minIdle,           // minimum idle time to check for events
         waitPromise: null,
-        waitIdle: null,
-        waitTimeout: null,
-        events: []
+        waitIdle: 0,                // id of idle timer
+        waitTimeout: 0,             // id of timeout timer  
+        events: []                  // array to store events  
     };
 
-    await context.addInitScript(context => {
+    await context.addInitScript(() => {
 
-        // This script runs in the browser context, not in the Node.js context, so context does not work here
-        // This is where we will observe DOM changes and log them
+        // This script runs on a page in the browser, not in the Node.js context, so context does not work here
+        // We use MutationObserver to monitor DOM changes and classify them as alerts or toasts
+
+        alerts = {};
+        alertID = 0;
+        alertTimer = null;
 
         function isGenerallyVisible(element) {
             const style = window.getComputedStyle(element)
@@ -119,7 +125,9 @@ async function initEventLogger(
             return isGenerallyVisible(element) && isVisibleInViewport(element) && element.checkVisibility()
         }
 
-        function showStatus(alertData) {
+        function updateStatus(alertID) {       
+
+            const alertData = alerts[alertID];
             const wasVisible = alertData.visible;
             const isVisible = isElementFullyVisible(alertData.node);
             
@@ -133,120 +141,121 @@ async function initEventLogger(
             }
             console.info(`Alert: Updated`,alertData);
             alertData.updated = Date.now(); // update the last updated time
-        
         }
 
-        alerts = {};
-        alertID = 0;
-        alertTimer = null;
+        function classify(node) {
+
+            //TO-DO: check for aria role
+
+            const className = node.className;
+            // find the word alert or toast
+            const isAlert = /\balert\b/;
+            const alertType = /\balert-(success|info|warning|error|danger)\b/g
+            const isToast = /\b(toast|ngx-toastr)\b/;
+            const toastType = /\btoast-(success|info|warning|error|danger)\b/g
+            
+            let   msgType = null;                    
+            let   msgClass= null;
+            let   msgTitle= null;
+            let   msgText = null;    
+                
+            if (isAlert.test(className)) {
+                const match = className.match(alertType);
+                if (match && match.length===1) {
+                    msgType  = 'alert'
+                    msgClass = match[0]
+                    msgText  = node.innerText.trim()
+                }                  
+            } else if (isToast.test(className)) {
+                const match = className.match(toastType)
+                if (match && match.length===1) {
+                    msgType  = 'toast'
+                    msgClass = match[0]
+                    const titleNode = node.querySelector(".toast-title");
+                    if (titleNode) {
+                    msgTitle = titleNode.innerText.trim();
+                    const msgNode = node.querySelector(".toast-message");
+                    msgText = msgNode.innerText.trim();
+
+                    } else
+                    msgText  = node.innerText.trim()
+                }      
+            }
+
+            if (!msgType) {
+                node.dataset.alertID = null; // classify as not an alert
+                return;
+            }
+
+            const newID = ++alertID;
+            node.dataset.alertID = newID; // store the alert ID in the node
+            
+            const alertData = {alert: newID, 
+                            class: msgClass,                            
+                            visible:isElementFullyVisible(node),
+                            shown: 0,
+                            text: msgText,                                    
+                            title: msgTitle,                           
+                            type: msgType,
+                            node:node,
+                            updated: Date.now()};
+
+            alerts[newID] = alertData; // store the alert in the alerts array
+
+            console.info('Alert: Created',alertData);
+
+            if (Object.keys(alerts).length === 1) {
+                alertTimer = setInterval(() => {
+
+                    for (const [alertID, alertData] of Object.entries(alerts)) {
+                        if (document.body.contains(alertData.node)) {
+                            updateStatus(alertID);
+                        } else {
+                            delete alerts[alertID]; // remove the alert from the alerts array
+                            console.info(`Alert: Removed left=[${Object.keys(alerts)}]`,alertData);
+                        }
+                    };
+
+                    if (Object.keys(alerts).length === 0) {
+                        clearInterval(alertTimer); // stop the timer if there are no alerts
+                        alertTimer = null;
+                        console.info(`Alert: Cleared all alerts`);
+                    }
+                }, 50); // check every 50ms
+            }
+        }
+
+        function checkNode(node) {
+
+            // check if node is element and has className
+            if (!node || node.nodeType !== Node.ELEMENT_NODE || !node.className) return;                 
+
+            const alertID = node.dataset?.alertID
+
+            // alertID is set when the node is classified as an alert
+            if (alertID > 0) {
+                updateStatus(alertID);
+            } else if (alertID === undefined) {
+                classify(node); // classify the node as an alert or not set the alertID to null
+            }
+
+        }        
 
         // create a new instance of `MutationObserver` named `observer`,
         const observer = new MutationObserver((mutations) => {
-      
-            function checkNode(cause, node) {
 
-                let alertData = {}
-
-                // check if element has not already been identified as an alert
-                if (!node.dataset?.alertID) {
-
-                    // this node may be a new alert
-
-                    //TO-DO: check for aria role
-
-                    const className = node.className;
-                    // find the word alert or toast
-                    const isAlert = /\balert\b/;
-                    const alertType = /\balert-(success|info|warning|error|danger)\b/g
-                    const isToast = /\b(toast|ngx-toastr)\b/;
-                    const toastType = /\btoast-(success|info|warning|error|danger)\b/g
-                    
-                    let   msgType = null;                    
-                    let   msgClass= null;
-                    let   msgTitle= null;
-                    let   msgText = null;    
-                        
-                    if (isAlert.test(className)) {
-                        const match = className.match(alertType);
-                        if (match && match.length===1) {
-                          msgType  = 'alert'
-                          msgClass = match[0]
-                          msgText  = node.innerText.trim()
-                        }                  
-                    } else if (isToast.test(className)) {
-                        const match = className.match(toastType)
-                        if (match && match.length===1) {
-                          msgType  = 'toast'
-                          msgClass = match[0]
-                          const titleNode = node.querySelector(".toast-title");
-                          if (titleNode) {
-                            msgTitle = titleNode.innerText.trim();
-                            const msgNode = node.querySelector(".toast-message");
-                            msgText = msgNode.innerText.trim();
-    
-                          } else
-                          msgText  = node.innerText.trim()
-                        }      
-                    }
-
-                    if (!msgType) return; // return if it is not an alert
-
-                    const newID = ++alertID;
-                    alertData = {alert: newID, 
-                                 class: msgClass,                            
-                                 visible:isElementFullyVisible(node),
-                                 shown: 0,
-                                 text: msgText,                                    
-                                 title: msgTitle,                           
-                                 type: msgType,
-                                 node:node,
-                                 updated: Date.now()};
-                    node.dataset.alertID = newID;
-                    alerts[newID] = alertData; // store the alert in the alerts array
-    
-                    console.info('Alert: Created',alertData);
-
-                    if (Object.keys(alerts).length === 1) {
-                        alertTimer = setInterval(() => {
-
-                            for (const [alertId, alertData] of Object.entries(alerts)) {
-                                if (document.body.contains(alertData.node)) {
-                                    showStatus(alertData);
-                                } else {
-                                    delete alerts[alertId]; // remove the alert from the alerts array
-                                    console.info(`Alert: Removed left=[${Object.keys(alerts)}]`,alertData);
-                                }
-
-                            };
-
-                            if (Object.keys(alerts).length === 0) {
-                                clearInterval(alertTimer); // stop the timer if there are no alerts
-                                alertTimer = null;
-                                console.info(`Alert: Cleared all alerts`);
-                            }
-                        }, 50); // check every 50ms
-                    }
-    
-                } else {
-                    alertData = alerts[node.dataset.alertID]
-                    showStatus(alertData);
-                }
-
-                //console.error(`Message: ${cause} type=${alertData.type} class=${alertData.class} visible=${alertData.visible} title=${alertData.title} text=${alertData.text}`);
-            }
-
+            // for each mutation in the array of mutations passed to the callback function
             for (const mutation of mutations) {
 
-                const node = mutation.target
-                checkNode('Target',node);
+                checkNode(mutation.target);
 
                 switch(mutation.type) {
                     case 'childList':
                         for (const node of mutation.addedNodes) {
-                            checkNode('Create',node);
+                            checkNode(node);
                         };
                         for (const node of mutation.removedNodes) {
-                            checkNode('Remove',node);
+                            checkNode(node);
                         };
                         break;   
                     case "attributes":
@@ -256,7 +265,7 @@ async function initEventLogger(
                 }
             }
 
-        }, context);
+        });
 
         // call `observe()`, passing it the element to observe, and the options object
         observer.observe(window.document, {
@@ -264,7 +273,7 @@ async function initEventLogger(
             childList: true
         });
 
-    }, context);
+    });
 
     // listen for requests
     context.on('request', request => {
@@ -278,23 +287,37 @@ async function initEventLogger(
             cfg.activeRequests.add(request.requestID);
             cfg.lastEventTime = Date.now();
 
-            let content = request.postDataJSON() || request.postData();
-            if (content) content = JSON.stringify(content, null, 2);
+            const methodsWithBody = ['POST', 'PUT', 'PATCH'];
+            const requestMethod = request.method();
+            let content = null;
+
+            // Check if the request method is one of the methods that can have a body
+            if (methodsWithBody.includes(requestMethod)) {
+                const contentType = request.headers()['content-type'];
+                if (contentType && contentType.includes('application/json')) {
+                  // Attempt to parse the post data as JSON to confirm
+                  content = request.postDataJSON();
+                  if (content) content = JSON.stringify(content, null, 2);
+                } else {
+                  // If not JSON, use the raw post data
+                  content = request.postData();
+                }
+            }
 
             /** @type {RequestData} */
             const rqd = {
                 requestID: request.requestID,
-                method: request.method(),
+                method: requestMethod,
                 resourceType: request.resourceType(),
                 url: request.url(),
                 postData: content,
                 failure: null,
             }
 
-            cfg.events.push({ 'time': new Date(), 'event': 'request', 'type': 'INFO', 'data': rqd });
-            //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `waitIdle size=${cfg.activeRequests.size} promise=${cfg.waitPromise} id=${cfg.waitIdle}` });
+            cfg.events.push({ 'time': Date.now(), 'event': 'request', 'type': 'INFO', 'data': rqd });
+            //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `waitIdle size=${cfg.activeRequests.size} promise=${cfg.waitPromise} id=${cfg.waitIdle}` });
             if (cfg.waitIdle) {
-                //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `clear waitIdle id=${cfg.waitIdle}` });
+                //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `clear waitIdle id=${cfg.waitIdle}` });
                 clearTimeout(context.cfg.waitIdle);
                 cfg.waitIdle = null;
             }
@@ -309,24 +332,39 @@ async function initEventLogger(
             cfg.activeRequests.delete(request.requestID);
             cfg.lastEventTime = Date.now();
 
-            let content = request.postDataJSON() || request.postData();
-            if (content) content = JSON.stringify(content, null, 2);
+            const methodsWithBody = ['POST', 'PUT', 'PATCH'];
+            const requestMethod = request.method();
+            let content = null;
+
+            // Check if the request method is one of the methods that can have a body
+            if (methodsWithBody.includes(requestMethod)) {
+                const contentType = request.headers()['content-type'];
+                if (contentType && contentType.includes('application/json')) {
+                  // Attempt to parse the post data as JSON to confirm
+                  content = request.postDataJSON();
+                  if (content) content = JSON.stringify(content, null, 2);
+                } else {
+                  // If not JSON, use the raw post data
+                  content = request.postData();
+                }
+
+            }
 
             /** @type {RequestData} */
             const rqd = {
                 requestID: request.requestID,
-                method: request.method(),
+                method: requestMethod,
                 resourceType: request.resourceType(),
                 url: request.url(),
                 postData: content,
                 failure: request.failure().errorText,
             }
 
-            cfg.events.push({ 'time': new Date(), 'event': 'request', 'type': 'WARN', 'data': rqd });
-            //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `waitIdle size=${cfg.activeRequests.size} promise=${cfg.waitPromise}` });
+            cfg.events.push({ 'time': Date.now(), 'event': 'request', 'type': 'WARN', 'data': rqd });
+            //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `waitIdle size=${cfg.activeRequests.size} promise=${cfg.waitPromise}` });
             if (cfg.activeRequests.size === 0 && context.cfg.waitPromise) {
                 cfg.waitIdle = setTimeout(cfg.waitPromise.resolve, cfg.minIdle);
-                //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `set waitIdle id=${cfg.waitIdle} time=${cfg.minIdle}`  });
+                //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `set waitIdle id=${cfg.waitIdle} time=${cfg.minIdle}`  });
             }
         }
     });
@@ -340,13 +378,27 @@ async function initEventLogger(
             cfg.activeRequests.delete(request.requestID);
             cfg.lastEventTime = Date.now();
 
-            let content = request.postDataJSON() || request.postData();
-            if (content) content = JSON.stringify(content, null, 2);            
+            const methodsWithBody = ['POST', 'PUT', 'PATCH'];
+            const requestMethod = request.method();
+            let content = null;
+
+            // Check if the request method is one of the methods that can have a body
+            if (methodsWithBody.includes(requestMethod)) {
+                const contentType = request.headers()['content-type'];
+                if (contentType && contentType.includes('application/json')) {
+                  // Attempt to parse the post data as JSON to confirm
+                  content = request.postDataJSON();
+                  if (content) content = JSON.stringify(content, null, 2);
+                } else {
+                  // If not JSON, use the raw post data
+                  content = request.postData();
+                }
+            } 
 
             /** @type {RequestData} */
             const rqd = {
                 requestID: request.requestID,
-                method: request.method(),
+                method: requestMethod,
                 resourceType: request.resourceType(),
                 url: request.url(),
                 postData: content,
@@ -375,11 +427,11 @@ async function initEventLogger(
                 ok: resp.ok(),
                 content: content
             }
-            cfg.events.push({ 'time': new Date(), 'event': 'response', 'type': 'INFO', 'data': [rqd,rsd] });
-            //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `waitIdle size=${cfg.activeRequests.size} promise=${cfg.waitPromise}` });
+            cfg.events.push({ 'time': Date.now(), 'event': 'response', 'type': 'INFO', 'data': [rqd,rsd] });
+            //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `waitIdle size=${cfg.activeRequests.size} promise=${cfg.waitPromise}` });
             if (cfg.activeRequests.size === 0 && context.cfg.waitPromise) {
                 cfg.waitIdle = setTimeout(cfg.waitPromise.resolve, cfg.minIdle);
-                //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `set waitIdle id=${cfg.waitIdle} time=${cfg.minIdle}`  });
+                //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `set waitIdle id=${cfg.waitIdle} time=${cfg.minIdle}`  });
             }
 
         }
@@ -391,7 +443,7 @@ async function initEventLogger(
         const cfg = context.cfg;
 
         if (message.text() != "JSHandle@error") {
-            cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': message.type().toUpperCase(), 'data': message.text() });
+            cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': message.type().toUpperCase(), 'data': message.text() });
             return;
         };
 
@@ -400,25 +452,25 @@ async function initEventLogger(
         }));
 
         msg = `${messages}`
-        cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': message.type().toUpperCase(), 'data': msg });
+        cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': message.type().toUpperCase(), 'data': msg });
     });
 
     context.on('page', page => {
-        //context.cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'INFO', 'data': `New page created: ${page.url()}` });
+        //context.cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'INFO', 'data': `New page created: ${page.url()}` });
         page.on('framenavigated', frame => {
-            context.cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'INFO', 'data': `Frame navigated: ${frame.url()}` });
+            context.cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'INFO', 'data': `Frame navigated: ${frame.url()}` });
         });
         page.on('pageerror', data => {
-            context.cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'ERROR', 'data': data.message });
+            context.cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'ERROR', 'data': data.message });
         });
     });
 
     logger(`init Event Logger finish`);
 }
 
-async function checkAlerts(context, page, path, timeout = 100) {
+async function checkAlerts(page, path, timeout = 100) {
 
-    //context.cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': 'check Alerts' });
+    //context.cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': 'check Alerts' });
 
     try {
         await page.locator(path).waitFor({ state: 'visible', timeout: timeout });
@@ -451,40 +503,40 @@ function waitPromise(cfg) {
         const waiting = cfg.activeRequests.size;      // Number of requests in flight
         const idle = Date.now() - cfg.lastEventTime;  // Time since last event
 
-        //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `wait Started waiting=${waiting} idle=${idle}` });
+        //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `wait Started waiting=${waiting} idle=${idle}` });
 
         if (waiting === 0) {
             if (idle > cfg.minIdle) {
-                //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `wait Resolve` });
+                //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `wait Resolve` });
                 resolve();
                 return;
             }
             else {
                 cfg.waitIdle = setTimeout(resolve, cfg.minIdle - idle);
-                //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `wait set id=${cfg.waitIdle} time=${cfg.minIdle - idle}` });
+                //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `wait set id=${cfg.waitIdle} time=${cfg.minIdle - idle}` });
             }
         }
 
         cfg.waitTimeout = setTimeout(() => {
             reject(new Error(`waitForApiEvents: Max wait time of ${cfg.maxWait}ms exceeded outstanding=${[...cfg.activeRequests].join(',')} id=${cfg.waitTimeout}`));
         }, cfg.maxWait);
-        //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `set waitTimeout id=${cfg.waitTimeout} time=${cfg.maxWait}` });
+        //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `set waitTimeout id=${cfg.waitTimeout} time=${cfg.maxWait}` });
 
     });
 
 }
 
 // Wait for all outstanding events
-async function waitForEvents(context, page, logger) {
+async function waitForEvents(context, page) {
 
     const cfg = context.cfg;
     if (!cfg) return;
-    const startTime = new Date();
+    const startTime = Date.now();
 
     // Wait for all events that we expect to happen
     try {
         // Check for alerts first because no need to wait for API events if we fail on alerts
-        if (cfg.alerts) await checkAlerts(context, page, path = cfg.alerts);
+        if (cfg.alerts) await checkAlerts(page, path = cfg.alerts);
 
         const startPromise = Date.now()
 
@@ -493,39 +545,39 @@ async function waitForEvents(context, page, logger) {
         cfg.waitPromise = null;
 
         if (cfg.waitIdle) {
-            //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `clear waitIdle id=${cfg.waitIdle}` });
+            //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `clear waitIdle id=${cfg.waitIdle}` });
             clearTimeout(cfg.waitIdle);
             cfg.waitIdle = null;
         }
 
         if (cfg.waitTimeout) {
-            //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `clear waitTimeout id=${cfg.waitTimeout}` });
+            //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `clear waitTimeout id=${cfg.waitTimeout}` });
             clearTimeout(cfg.waitTimeout);
             cfg.waitTimeout = null;
         }
 
-        //cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'DEBUG', 'data': `wait End delta=${Date.now()-startPromise}` });
+        //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `wait End delta=${Date.now()-startPromise}` });
         // Check for alerts again after all API responses have been processed
-        if (cfg.alerts) await checkAlerts(context, page, path = cfg.alerts);
+        if (cfg.alerts) await checkAlerts(page, path = cfg.alerts);
     } catch (error) {
         // usually an alert or timeout error
-        cfg.events.push({ 'time': new Date(), 'event': 'console', 'type': 'ERROR', 'data': error });
+        cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'ERROR', 'data': error });
         throw error;
     }
 
-    const endTime = new Date();
+    const endTime = Date.now();
     const delta = endTime - startTime;
 
     cfg.events.push({ 'time': endTime, 'event': 'console', 'type': 'INFO', 'data': `Wait satisfied in ${delta} ms` });
 }
 
-async function reportEvents(context, logger) {
+async function reportEvents(context) {
 
     if (!('cfg' in context)) return;
 
     // Return raw event data as JSON
     return context.cfg.events.map(ev => ({
-        time: ev.time.toISOString(),
+        time: ev.time,
         event: ev.event,
         type: ev.type,
         data: ev.data

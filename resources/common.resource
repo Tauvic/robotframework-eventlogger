@@ -88,7 +88,7 @@ Test Setup
     Browser.New Context  tracing=${TRACING}
     EventLogger.Init  waitAfter=Browser.Click, Browser.Go To  
     ...               alerts=xpath=//div[contains(@class, 'alert-danger')]  
-    ...               logLevel=INFO
+    ...               logLevel=DEBUG
 
     New Page
 

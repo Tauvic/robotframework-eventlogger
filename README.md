@@ -170,7 +170,7 @@ This methodology enables a data-driven testing approach, potentially leveraging 
 Current work in progress:
 
 - [x] Add support for reporting logLevel
-- [ ] Add alert handling
+- [x] Add alert handling (work in progress)
 - [ ] Add mechanism for detecting javascript framework
 
 ## wait for Events

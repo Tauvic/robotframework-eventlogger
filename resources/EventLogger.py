@@ -2,7 +2,7 @@ from robot.api.deco import library, keyword
 from robot.api import logger
 from robot import running, result
 from robot.libraries.BuiltIn import BuiltIn
-from datetime import datetime, timezone
+import datetime, time
 from enum import Enum
 
 import html
@@ -67,8 +67,8 @@ class EventLogger:
 
         # Merge local events with JavaScript events based on timestamps
         all_events = self.local_events + js_events
-        all_events.sort(key=lambda ev: datetime.fromisoformat(ev['time']))
-
+        all_events.sort(key=lambda ev: ev['time'])
+        
         # Generate HTML report
         report = self._generate_html_report(all_events).replace('{','\{')
 
@@ -79,17 +79,22 @@ class EventLogger:
 
         return report
 
+    def _format_time(self,milliseconds):
+      """Converts milliseconds since the epoch to HH:MM:SS.mmm format."""
+      seconds = milliseconds / 1000
+      dt_object = datetime.datetime.fromtimestamp(seconds)
+      return dt_object.strftime("%H:%M:%S.%f")[:-3]
+
     def _generate_html_report(self, events):
         """
         Generate an HTML report from the merged events.
         """
-        if not events:
-            return ""
+        if not events: return ""
 
         level = 0
-        html = '<table style="width:100%"><tr><th style="width:100px">Time</th><th style="width:100px">Event source</th><th style="width:100px">Type</th><th style="width:100%">Data</th></tr>'
+        html = '<table style="width:100%"><tr><th style="width:80px">Time</th><th style="width:60px">Source</th><th style="width:60px">Type</th><th style="width:100%">Data</th></tr>'
         for ev in events:            
-            time = ev['time'][11:23]  # Extract time from ISO timestamp
+            time = self._format_time(ev['time'])
             event = ev['event']
             event_type = ev['type']
             if LogLevel[event_type].value < self.logLevel.value: continue            
@@ -146,7 +151,7 @@ class EventLogger:
         if  len(args) > 80:
           args = f'<details><summary>arguments</summary>{args}</details>'
 
-        self.local_events.append({'time': datetime.now(timezone.utc).isoformat(), 
+        self.local_events.append({'time': int(time.time() * 1000), 
                                   'level': self.level,
                                   'event': 'script', 
                                   'type': 'INFO', 
@@ -161,7 +166,7 @@ class EventLogger:
       try:
         msg = f"End : {kw.name} library={result.libname} status={result.status}"     
         logger.info(msg,also_console=True)   
-        self.local_events.append({'time': datetime.now(timezone.utc).isoformat(), 
+        self.local_events.append({'time': int(time.time() * 1000), 
                                   'level': self.level,
                                   'event': 'script', 
                                   'type': 'INFO', 
@@ -185,7 +190,7 @@ class EventLogger:
         args = f'<details><summary>arguments</summary>{args}</details>'     
       
       msg = f"Start: {kw.name} {args}" 
-      self.local_events.append({'time': datetime.now(timezone.utc).isoformat(), 
+      self.local_events.append({'time': int(time.time() * 1000), 
                                 'level': self.level,
                                 'event': 'script', 
                                 'type': 'INFO', 
@@ -206,7 +211,7 @@ class EventLogger:
 
       msg = f"End : {kw.name} library={result.libname} status={result.status}"  
       logger.info(msg,also_console=True)   
-      self.local_events.append({'time': datetime.now(timezone.utc).isoformat(), 
+      self.local_events.append({'time': int(time.time() * 1000), 
                                 'level': self.level,
                                 'event': 'script', 
                                 'type': 'INFO', 
