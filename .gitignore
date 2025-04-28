@@ -1,6 +1,10 @@
 .venv
 **/__pycache__/
 rommel
-results
+results/*
+!results/log.html
+!results/report.html
+!results/browser/screenshot/
+!results/browser/screenshot/*.png
 playwright-log*
 .DS_Store

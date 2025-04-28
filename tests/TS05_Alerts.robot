@@ -6,7 +6,6 @@ Test Tags           alerts
 *** Test Cases ***
 TC01 Toast
     [Documentation]    Test Angular toast
-    [Tags]  logLevel:DEBUG
     Go To  https://ngx-toastr.vercel.app/
 
     Type Text  selector=id=toastTitle    txt=MyTitle_1
@@ -21,7 +20,6 @@ TC01 Toast
 
 TC02 Toast
     [Documentation]    Test Angular toast showing 3 alerts with timeout
-    [Tags]  logLevel:DEBUG
     Go To  https://ngx-toastr.vercel.app/
 
     Type Text  selector=id=toastTitle    txt=MyTitle_1

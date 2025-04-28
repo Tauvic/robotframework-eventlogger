@@ -132,6 +132,7 @@ Wait For Events
 After executing your tests, detailed logs of the collected events are generated in the results folder. Open the `log.html` file in your web browser to access a comprehensive overview of the logged events, providing valuable context for your test execution.
 
 ![Log](./images/log.png)
+Show my: [Report](/results/report.html)
 
 ## 6. Customizing the Event Logger
 For users with specific needs, the Event Logger offers extensibility. If you need specific functionalities, you can extend the Python and JavaScript functions. Add your own functions to `EventLogger.py` and use them in your tests.
@@ -325,3 +326,9 @@ Test environments for alerts
   * https://ngx-toastr.vercel.app/
   * https://material.angularjs.org/latest/demo/toast
 * Vue.js
+
+
+# Install
+
+## configure fnm environment
+fnm env --use-on-cd | Out-String | Invoke-Expression

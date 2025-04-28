@@ -139,7 +139,7 @@ async function initEventLogger(
             if (isVisible === false && wasVisible == true) {
                 alertData.shown += delta; // update the shown time
             }
-            console.info(`Alert: Updated`,alertData);
+            console.debug(`Alert: Updated`,alertData);
             alertData.updated = Date.now(); // update the last updated time
         }
 
@@ -202,7 +202,7 @@ async function initEventLogger(
 
             alerts[newID] = alertData; // store the alert in the alerts array
 
-            console.info('Alert: Created',alertData);
+            console.debug('Alert: Created',alertData);
 
             if (Object.keys(alerts).length === 1) {
                 alertTimer = setInterval(() => {
@@ -212,14 +212,14 @@ async function initEventLogger(
                             updateStatus(alertID);
                         } else {
                             delete alerts[alertID]; // remove the alert from the alerts array
-                            console.info(`Alert: Removed left=[${Object.keys(alerts)}]`,alertData);
+                            console.debug(`Alert: Removed left=[${Object.keys(alerts)}]`,alertData);
                         }
                     };
 
                     if (Object.keys(alerts).length === 0) {
                         clearInterval(alertTimer); // stop the timer if there are no alerts
                         alertTimer = null;
-                        console.info(`Alert: Cleared all alerts`);
+                        console.debug(`Alert: Cleared all alerts`);
                     }
                 }, 50); // check every 50ms
             }
@@ -321,6 +321,11 @@ async function initEventLogger(
                 clearTimeout(context.cfg.waitIdle);
                 cfg.waitIdle = null;
             }
+        } else {
+            const cfg = context.cfg;
+            const resourceType = request.resourceType();
+            if (resourceType === 'document')
+              cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `${resourceType} url=${request.url()}` });
         }
     });
 
@@ -347,7 +352,6 @@ async function initEventLogger(
                   // If not JSON, use the raw post data
                   content = request.postData();
                 }
-
             }
 
             /** @type {RequestData} */
@@ -405,19 +409,20 @@ async function initEventLogger(
                 failure: null
             }
 
-            const resp = await request.response()
+            const resp = await request.response();
+            const contentType = resp.headers()['content-type'];
             content = null;
 
             try {
-                content = await resp.json();
-                content = JSON.stringify(content, null, 2);
-            } catch (ex) {
-                try {
-                    content = await resp.text();
-                }
-                catch (ex) {
-                    content = null;
-                }
+                if (contentType && contentType.includes('application/json')) {
+                    content = await resp.json();
+                    content = JSON.stringify(content, null, 2);
+                } else {
+                    // If not JSON, use the raw post data
+                    content = await resp.text();    
+                }    
+            } catch (error) {
+                cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'ERROR', 'data': error.toString() });
             }
 
             /** @type {ResponseData} */
@@ -456,9 +461,9 @@ async function initEventLogger(
     });
 
     context.on('page', page => {
-        //context.cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'INFO', 'data': `New page created: ${page.url()}` });
+        context.cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `New page created: ${page.url()}` });
         page.on('framenavigated', frame => {
-            context.cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'INFO', 'data': `Frame navigated: ${frame.url()}` });
+            context.cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'INFO', 'data': `Frame navigated: url=${frame.url()}` });
         });
         page.on('pageerror', data => {
             context.cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'ERROR', 'data': data.message });
@@ -568,7 +573,7 @@ async function waitForEvents(context, page) {
     const endTime = Date.now();
     const delta = endTime - startTime;
 
-    cfg.events.push({ 'time': endTime, 'event': 'console', 'type': 'INFO', 'data': `Wait satisfied in ${delta} ms` });
+    cfg.events.push({ 'time': endTime, 'event': 'console', 'type': 'DEBUG', 'data': `Wait satisfied in ${delta} ms` });
 }
 
 async function reportEvents(context) {

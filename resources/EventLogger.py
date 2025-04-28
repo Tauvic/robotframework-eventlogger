@@ -31,7 +31,7 @@ class EventLogger:
       """
       logger.info(f"Event Listener init", also_console=True)
       self.waitAfter = None
-      self.ommit = [] #['BuiltIn','Collections']
+      self.ommit = ['BuiltIn','Collections']
       self.level = 0
       self.local_events = []  # Local list to store events
       self.logLevel:LogLevel = LogLevel.INFO
@@ -179,6 +179,8 @@ class EventLogger:
     def start_library_keyword(self, kw:running.Keyword, impl, result:result.Keyword):
       
       if result.status in ['FAIL','SKIP','NOT RUN']: return
+
+      if result.libname in self.ommit: return
       
       args = " ".join([str(arg) for arg in result.args])
       msg = f"Start: {kw.name} {args}"  
@@ -198,7 +200,7 @@ class EventLogger:
 
     def end_library_keyword(self, kw:running.Keyword, impl, result:result.Keyword):
 
-      if result.status in ['SKIP','NOT RUN']: return 
+      if result.status in ['SKIP','NOT RUN']: return       
       
       # Auto start wait for Events
       if self.waitAfter and f"{result.libname}.{kw.name}" in self.waitAfter:           
@@ -208,6 +210,8 @@ class EventLogger:
           # logger.error(ex)
           result.status = 'FAIL'
           result.message = str(ex)
+
+      if result.libname in self.ommit: return
 
       msg = f"End : {kw.name} library={result.libname} status={result.status}"  
       logger.info(msg,also_console=True)   
@@ -220,12 +224,10 @@ class EventLogger:
       self.level -=1   
 
     def start_test(self, data: running.TestCase, result):
-        m = data.tags.match('logLevel:*')
-        if data.tags.match('logLevel:*'):
+        if data.tags.match('ev:*'):
            for tag in data.tags:
-              if tag.startswith('logLevel'):
-                 level = tag.split(':')[1]
+              if tag.startswith('ev:ommit'):
+                 self.ommit = tag.split('ev:ommit:')[1].split(',')
                  
-                 #BuiltIn().run_keyword('Browser.setLogLevel',level) 
 
   

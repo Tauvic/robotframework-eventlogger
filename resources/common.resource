@@ -92,6 +92,8 @@ Test Setup
 
     New Page
 
+    #Sleep  5 seconds
+
     IF  ${NETWORK_SPEED} == "Fast 3 G"
       Throttle Network Speed To Fast 3 G
     ELSE IF  ${NETWORK_SPEED} == "Slow 3 G"
