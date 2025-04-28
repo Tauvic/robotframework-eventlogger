@@ -92,7 +92,10 @@ class EventLogger:
         if not events: return ""
 
         level = 0
-        html = '<table style="width:100%"><tr><th style="width:80px">Time</th><th style="width:60px">Source</th><th style="width:60px">Type</th><th style="width:100%">Data</th></tr>'
+        context = None
+        bgcolors = ['#5dade2','#1abc9c']  #  background colors
+        bgcolor = 0 # Start with the first color
+        html = '<table style="width:100%"><tr><th style="width:80px">Time</th><th style="width:60px">Source</th><th style="width:60px">Type</th><th style="width:30px">CTX</th><th style="width:100%">Data</th></tr>'
         for ev in events:            
             time = self._format_time(ev['time'])
             event = ev['event']
@@ -105,7 +108,14 @@ class EventLogger:
             if event != 'script':
                space = space + ('&nbsp;' * 4)
 
-            html += f"<tr><td>{time}</td><td>{event}</td><td>{event_type}</td><td>{space}{data}</td></tr>"
+            new_context = ev.get('context', context)
+            if new_context != context:
+               bgcolor = 0 if bgcolor == 1 else 1  # Alternate background color
+               context = new_context
+            
+            # #f7dc6f 
+            html += f"<tr><td>{time}</td><td>{event}</td><td>{event_type}</td><td  style='background:{bgcolors[bgcolor]}'></td><td>{space}{data}</td></tr>"
+        
         html += '</table>'
         return f"<details><summary>Event log:</summary>{html}</details>"
 

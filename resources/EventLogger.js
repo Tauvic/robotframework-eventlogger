@@ -26,7 +26,8 @@
 
 /**
  * @typedef {object} EventLogEntry
- * @property {Date} time
+ * @property {Number} time
+ * @property {string} context
  * @property {string} event
  * @property {string} type
  * @property {any} data
@@ -43,6 +44,7 @@
  * @property {Promise<{resolve: (value?: any) => void, reject: (reason?: any) => void} | null>} waitPromise
  * @property {NodeJS.Timeout | null} waitIdle
  * @property {NodeJS.Timeout | null} waitTimeout
+ * @property {string | null} context
  * @property {EventLogEntry[]} events
  */
 
@@ -314,19 +316,14 @@ async function initEventLogger(
                 failure: null,
             }
 
-            cfg.events.push({ 'time': Date.now(), 'event': 'request', 'type': 'INFO', 'data': rqd });
+            cfg.events.push({ time: Date.now(), event: 'request', 'type': 'INFO', data: rqd });
             //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `waitIdle size=${cfg.activeRequests.size} promise=${cfg.waitPromise} id=${cfg.waitIdle}` });
             if (cfg.waitIdle) {
                 //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `clear waitIdle id=${cfg.waitIdle}` });
                 clearTimeout(context.cfg.waitIdle);
                 cfg.waitIdle = null;
             }
-        } else {
-            const cfg = context.cfg;
-            const resourceType = request.resourceType();
-            if (resourceType === 'document')
-              cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `${resourceType} url=${request.url()}` });
-        }
+        } 
     });
 
     // listen for requests failed
@@ -364,7 +361,7 @@ async function initEventLogger(
                 failure: request.failure().errorText,
             }
 
-            cfg.events.push({ 'time': Date.now(), 'event': 'request', 'type': 'WARN', 'data': rqd });
+            cfg.events.push({ time: Date.now(), event: 'request', type: 'WARN', data: rqd });
             //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `waitIdle size=${cfg.activeRequests.size} promise=${cfg.waitPromise}` });
             if (cfg.activeRequests.size === 0 && context.cfg.waitPromise) {
                 cfg.waitIdle = setTimeout(cfg.waitPromise.resolve, cfg.minIdle);
@@ -422,7 +419,7 @@ async function initEventLogger(
                     content = await resp.text();    
                 }    
             } catch (error) {
-                cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'ERROR', 'data': error.toString() });
+                cfg.events.push({ time: Date.now(), event: 'console', type: 'ERROR', data: error.toString() });
             }
 
             /** @type {ResponseData} */
@@ -432,7 +429,7 @@ async function initEventLogger(
                 ok: resp.ok(),
                 content: content
             }
-            cfg.events.push({ 'time': Date.now(), 'event': 'response', 'type': 'INFO', 'data': [rqd,rsd] });
+            cfg.events.push({ time: Date.now(), event: 'response', type: 'INFO', data: [rqd,rsd] });
             //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `waitIdle size=${cfg.activeRequests.size} promise=${cfg.waitPromise}` });
             if (cfg.activeRequests.size === 0 && context.cfg.waitPromise) {
                 cfg.waitIdle = setTimeout(cfg.waitPromise.resolve, cfg.minIdle);
@@ -448,7 +445,7 @@ async function initEventLogger(
         const cfg = context.cfg;
 
         if (message.text() != "JSHandle@error") {
-            cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': message.type().toUpperCase(), 'data': message.text() });
+            cfg.events.push({ time: Date.now(), event: 'console', type: message.type().toUpperCase(), data: message.text() });
             return;
         };
 
@@ -457,16 +454,20 @@ async function initEventLogger(
         }));
 
         msg = `${messages}`
-        cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': message.type().toUpperCase(), 'data': msg });
+        cfg.events.push({ time: Date.now(), event: 'console', type: message.type().toUpperCase(), data: msg });
     });
 
     context.on('page', page => {
-        context.cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `New page created: ${page.url()}` });
+
+        context.cfg.events.push({ time: Date.now(), event: 'console', type: 'DEBUG', data: `New page created: ${page.url()}`, context: page.url()});
+
         page.on('framenavigated', frame => {
-            context.cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'INFO', 'data': `Frame navigated: url=${frame.url()}` });
+            const url = page.url();
+            context.cfg.events.push({ time: Date.now(), event: 'console', type: 'INFO', data: `Navigated: url=${url}`, context: url });
         });
+
         page.on('pageerror', data => {
-            context.cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'ERROR', 'data': data.message });
+            context.cfg.events.push({ time: Date.now(), event: 'console', type: 'ERROR', data: data.message });
         });
     });
 
@@ -566,27 +567,21 @@ async function waitForEvents(context, page) {
         if (cfg.alerts) await checkAlerts(page, path = cfg.alerts);
     } catch (error) {
         // usually an alert or timeout error
-        cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'ERROR', 'data': error });
+        cfg.events.push({ time: Date.now(), event: 'console', type: 'ERROR', data: error });
         throw error;
     }
 
     const endTime = Date.now();
     const delta = endTime - startTime;
 
-    cfg.events.push({ 'time': endTime, 'event': 'console', 'type': 'DEBUG', 'data': `Wait satisfied in ${delta} ms` });
+    cfg.events.push({ time: endTime, event: 'console', type: 'DEBUG', data: `Wait satisfied in ${delta} ms` });
 }
 
 async function reportEvents(context) {
 
     if (!('cfg' in context)) return;
 
-    // Return raw event data as JSON
-    return context.cfg.events.map(ev => ({
-        time: ev.time,
-        event: ev.event,
-        type: ev.type,
-        data: ev.data
-    }));
+    return context.cfg.events;
 }
 
 initEventLogger.rfdoc = `
