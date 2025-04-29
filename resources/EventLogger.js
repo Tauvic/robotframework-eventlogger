@@ -73,14 +73,14 @@ async function initEventLogger(
     //  Dom changes (used for alerts, warnings, info messages, toast messages)
     //  Console messages
 
+    logger(`init Event Logger start`);
+
     if ('cfg' in context) {
         //Prevent running this twice
         //We assume that the context is not reused in the same test
         logger(`Init API Requests called twice !! `);
         throw new Error("Init API Requests called twice !!");
     }
-
-    logger(`init Event Logger start`);
 
     // create data structure to store results in context
     /** @type {ContextData} */
@@ -99,7 +99,7 @@ async function initEventLogger(
         events: []                  // array to store events  
     };
 
-    await context.addInitScript(() => {
+    context.addInitScript(() => {
 
         // This script runs on a page in the browser, not in the Node.js context, so context does not work here
         // We use MutationObserver to monitor DOM changes and classify them as alerts or toasts
@@ -132,17 +132,16 @@ async function initEventLogger(
             const alertData = alerts[alertID];
             const wasVisible = alertData.visible;
             const isVisible = isElementFullyVisible(alertData.node);
-            
-            if (isVisible === wasVisible) return; // no change in visibility
 
-            alertData.visible = isVisible; // update the visibility status
-            const delta = Date.now()-alertData.updated;
-
-            if (isVisible === false && wasVisible == true) {
+            if (wasVisible == true) {
+                const delta = Date.now()-alertData.updated;
                 alertData.shown += delta; // update the shown time
             }
-            console.debug(`Alert: Updated`,alertData);
+
+            alertData.visible = isVisible; // update the visibility status
             alertData.updated = Date.now(); // update the last updated time
+
+            if (isVisible !== wasVisible) console.debug(`Alert: Updated`,alertData);
         }
 
         function classify(node) {
@@ -458,8 +457,6 @@ async function initEventLogger(
     });
 
     context.on('page', page => {
-
-        context.cfg.events.push({ time: Date.now(), event: 'console', type: 'DEBUG', data: `New page created: ${page.url()}`, context: page.url()});
 
         page.on('framenavigated', frame => {
             const url = page.url();

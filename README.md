@@ -332,3 +332,7 @@ Test environments for alerts
 
 ## configure fnm environment
 fnm env --use-on-cd | Out-String | Invoke-Expression
+
+
+## Show traces
+npx playwright show-trace path/to/trace.zip

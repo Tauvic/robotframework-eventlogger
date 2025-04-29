@@ -104,18 +104,22 @@ class EventLogger:
             data = self._format_event_data(ev)
             level = ev.get('level', level)
 
-            space = '&nbsp;' * ((level-1) * 4)  # Indent based on level
-            if event != 'script':
-               space = space + ('&nbsp;' * 4)
+            if event == 'script':
+               bonus = 0
+            else:
+               bonus = 1
+
+            # Use margin-left for indentation
+            indent_style = f"margin-left: {(level + bonus) * 20}px;"  # 20px per level
 
             new_context = ev.get('context', context)
             if new_context != context:
-               bgcolor = 0 if bgcolor == 1 else 1  # Alternate background color
-               context = new_context
-            
-            # #f7dc6f 
-            html += f"<tr><td>{time}</td><td>{event}</td><td>{event_type}</td><td  style='background:{bgcolors[bgcolor]}'></td><td>{space}{data}</td></tr>"
-        
+              bgcolor = 0 if bgcolor == 1 else 1  # Alternate background color
+              context = new_context
+              html += f"<tr style='background:{bgcolors[bgcolor]}'><td>{time}</td><td>{event}</td><td>{event_type}</td><td></td><td><div style='{indent_style}'>{data}</div></td></tr>"
+            else:
+              html += f"<tr><td>{time}</td><td>{event}</td><td>{event_type}</td><td style='background:{bgcolors[bgcolor]}'></td><td><div style='{indent_style}'>{data}</div></td></tr>"
+           
         html += '</table>'
         return f"<details><summary>Event log:</summary>{html}</details>"
 
@@ -127,7 +131,7 @@ class EventLogger:
             rqd = event['data']
             rq_status = f"<span style='color:red'>{rqd['failure']}</span>" if rqd.get('failure') else "<span style='color:green'>Ok</span>"
             header = f"{rqd['requestID']:03d} {rqd['method']} {rqd['resourceType']} {rqd['url']} {rq_status}"
-            details = f"<details><summary>{header}</summary><pre>{rqd.get('postData', '')}</pre></details>" if rqd.get('postData') else header
+            details = f"<details><summary>{header}</summary><pre>{rqd.get('postData', '')}</pre></details>" if rqd.get('postData') else header            
             return details
 
         if event['event'] == 'response':
