@@ -1,6 +1,6 @@
 # Robot Framework Event Logger
 
-<img align="right" width="250" src="images/Log.png"/>
+<img align="right" width="250" src="images/log.png"/>
 
 
 **The situation**: Robot Framework is a versatile and user-friendly test automation framework, known for its keyword-driven approach that simplifies test script creation. However, testing modern `asynchronous` web applications, particularly those built with frameworks like Angular and React, can present challenges.
