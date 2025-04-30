@@ -86,7 +86,7 @@ Test Teardown
 Test Setup
     [Documentation]  Open Browser Home Page
     Browser.New Context  tracing=${TRACING}
-    EventLogger.Init  waitAfter=Browser.Click, Browser.Go To  
+    EventLogger.Init  waitAfter=Browser.Click, Browser.Click With Options,Browser.Go To  
     ...               alerts=xpath=//div[contains(@class, 'alert-danger')]  
     ...               logLevel=DEBUG
 

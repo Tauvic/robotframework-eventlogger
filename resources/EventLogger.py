@@ -158,8 +158,6 @@ class EventLogger:
       if result.status in ['FAIL','SKIP','NOT RUN']: return      
 
       try:
-        self.level +=1
-
         args = " ".join([str(arg) for arg in result.args])    
         logger.info(f"Start: {kw.name} {args}",also_console=True)
         if  len(args) > 80:
@@ -170,6 +168,8 @@ class EventLogger:
                                   'event': 'script', 
                                   'type': 'INFO', 
                                   'data': f"Start: {kw.name} {args}"})
+        self.level +=1
+
       except  Exception as ex:
         logger.warning(ex)        
 
@@ -180,6 +180,7 @@ class EventLogger:
       try:
         msg = f"End : {kw.name} library={result.libname} status={result.status}"     
         logger.info(msg,also_console=True)   
+        if (self.level > 0): self.level -=1           
         self.local_events.append({'time': int(time.time() * 1000), 
                                   'level': self.level,
                                   'event': 'script', 
@@ -187,47 +188,57 @@ class EventLogger:
                                   'data': msg})               
       except  Exception as ex:
         logger.warning(ex)                 
-      finally:
-        if (self.level > 0): self.level -=1   
-  
+
+      # What library key words should we log and how
+      # The keyword that we mention in waitAfter will be logged with start/end
+      # the other keywords will be logged with start
+
     def start_library_keyword(self, kw:running.Keyword, impl, result:result.Keyword):
       
       if result.status in ['FAIL','SKIP','NOT RUN']: return
 
-      if result.libname in self.ommit: return
+      if self.waitAfter and f"{result.libname}.{kw.name}" in self.waitAfter:  
+        logPrefix = 'Start: '   
+      else:
+        if result.libname in self.ommit: return
+        logPrefix = ''
       
       args = " ".join([str(arg) for arg in result.args])
-      msg = f"Start: {kw.name} {args}"  
+      msg = f"{logPrefix}{kw.name} {args}"  
       logger.info(msg,also_console=True)
 
-      self.level +=1       
+      if kw.name == 'Browser.waitForEvents': return       
  
       if  len(args) > 80:
         args = f'<details><summary>arguments</summary>{args}</details>'     
       
-      msg = f"Start: {kw.name} {args}" 
+      msg = f"{logPrefix}{kw.name} {args}" 
       self.local_events.append({'time': int(time.time() * 1000), 
                                 'level': self.level,
                                 'event': 'script', 
                                 'type': 'INFO', 
                                 'data': msg})
+    
+      if logPrefix == 'Start: ':
+        self.level +=1
 
     def end_library_keyword(self, kw:running.Keyword, impl, result:result.Keyword):
 
       if result.status in ['SKIP','NOT RUN']: return       
       
       # Auto start wait for Events
-      if self.waitAfter and f"{result.libname}.{kw.name}" in self.waitAfter:           
+      if self.waitAfter and f"{result.libname}.{kw.name}" in self.waitAfter:    
         try:
           BuiltIn().run_keyword('Browser.waitForEvents') 
         except  Exception as ex:
           # logger.error(ex)
           result.status = 'FAIL'
           result.message = str(ex)
+      else:
+         return
 
-      if result.libname in self.ommit: return
-
-      msg = f"End : {kw.name} library={result.libname} status={result.status}"  
+      self.level -=1   
+      msg = f"End:  {kw.name} library={result.libname} status={result.status}"  
       logger.info(msg,also_console=True)   
       self.local_events.append({'time': int(time.time() * 1000), 
                                 'level': self.level,
@@ -235,7 +246,6 @@ class EventLogger:
                                 'type': 'INFO', 
                                 'data': msg})
 
-      self.level -=1   
 
     def start_test(self, data: running.TestCase, result):
         if data.tags.match('ev:*'):
