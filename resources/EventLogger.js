@@ -278,10 +278,11 @@ async function initEventLogger(
 
     // listen for requests
     context.on('request', request => {
-        if (request.resourceType() === 'xhr') {
+        /** @type {ContextData} */
+        const cfg = context.cfg;
+        const url = new URL(request.url());
 
-            /** @type {ContextData} */
-            const cfg = context.cfg;
+        if (['xhr','fetch'].includes(request.resourceType()) && url.hostname.includes(cfg.hostname)) {
 
             cfg.requestID += 1;
             request.requestID = cfg.requestID;
@@ -327,9 +328,12 @@ async function initEventLogger(
 
     // listen for requests failed
     context.on('requestfailed', request => {
-        if (request.resourceType() === 'xhr') {
-            /** @type {ContextData} */
-            const cfg = context.cfg;
+
+        /** @type {ContextData} */
+        const cfg = context.cfg;
+
+        if (cfg.activeRequests.has(request.requestID)) {
+
             cfg.activeRequests.delete(request.requestID);
             cfg.lastEventTime = Date.now();
 
@@ -371,9 +375,11 @@ async function initEventLogger(
 
     // listen for responses finished
     context.on('requestfinished', async request => {
-        if (request.resourceType() === 'xhr') {
-            /** @type {ContextData} */
-            const cfg = context.cfg
+
+        /** @type {ContextData} */
+        const cfg = context.cfg;
+
+        if (cfg.activeRequests.has(request.requestID)) {
 
             cfg.activeRequests.delete(request.requestID);
             cfg.lastEventTime = Date.now();
@@ -458,8 +464,10 @@ async function initEventLogger(
 
     context.on('page', page => {
 
-        page.on('framenavigated', frame => {
+        page.on('framenavigated', async (frame) => {
             const url = page.url();
+            // save hostname to context: used for checking api requests
+            context.cfg.hostname = await page.evaluate(()=> {return location.hostname});;
             context.cfg.events.push({ time: Date.now(), event: 'console', type: 'INFO', data: `Navigated: url=${url}`, context: url });
         });
 
