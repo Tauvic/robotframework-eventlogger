@@ -1,6 +1,6 @@
 # Robot Framework Event Logger
 
-<img align="right" width="250" src="images/Log.png"/>
+<img align="right" width="250" src="images/log.png"/>
 
 
 **The situation**: Robot Framework is a versatile and user-friendly test automation framework, known for its keyword-driven approach that simplifies test script creation. However, testing modern `asynchronous` web applications, particularly those built with frameworks like Angular and React, can present challenges.
@@ -131,7 +131,7 @@ Wait For Events
 ## 5. View the Logs
 After executing your tests, detailed logs of the collected events are generated in the results folder. Open the `log.html` file in your web browser to access a comprehensive overview of the logged events, providing valuable context for your test execution.
 
-![Log](./images/Log.png)
+![Log](./images/log.png)
 Show my: [Report](/results/report.html)
 
 ## 6. Customizing the Event Logger
