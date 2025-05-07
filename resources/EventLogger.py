@@ -31,6 +31,7 @@ class EventLogger:
       """
       logger.info(f"Event Listener init", also_console=True)
       self.waitAfter = None
+      self.waiting = False
       self.ommit = ['BuiltIn','Collections']
       self.level = 0
       self.local_events = []  # Local list to store events
@@ -130,7 +131,10 @@ class EventLogger:
         """
         Format event data based on its type.
         """
-        if event['event'] == 'request':
+        if event['event'] == 'request':            
+            if self.waiting == False: 
+               test_case = BuiltIn().get_variable_value('${TEST NAME}')
+               logger.warn(f"{test_case}: Received request while not waiting for events")
             rqd = event['data']
             rq_status = f"<span style='color:red'>{rqd['failure']}</span>" if rqd.get('failure') else "<span style='color:green'>Ok</span>"
             header = f"{rqd['requestID']:03d} {rqd['method']} {rqd['resourceType']} {rqd['url']} {rq_status}"
@@ -138,6 +142,9 @@ class EventLogger:
             return details
 
         if event['event'] == 'response':
+            if self.waiting == False: 
+               test_case = BuiltIn().get_variable_value('${TEST NAME}')
+               logger.warn(f"{test_case}: Received response while not waiting for events")            
             rqd, rsd = event['data']
             s_c = 'green' if rsd['ok'] else 'red'
             header = f"{rqd['requestID']:03d} {rqd['method']} {rqd['resourceType']} {rqd['url']} <span style='color:{s_c}'>status={rsd['status']} {rsd['statusText']}</span>"
@@ -210,6 +217,7 @@ class EventLogger:
 
       if self.waitAfter and f"{result.libname}.{kw.name}" in self.waitAfter:  
         logPrefix = 'Start: '   
+        self.waiting = True
       else:
         if result.libname in self.ommit: return
         logPrefix = ''
@@ -245,6 +253,7 @@ class EventLogger:
           # logger.error(ex)
           result.status = 'FAIL'
           result.message = str(ex)
+        self.waiting
       else:
          return
 

@@ -291,6 +291,8 @@ async function initEventLogger(
 
     });
 
+    const resourceTypes =['xhr','fetch','preflight']; // log these resource types only
+
     // listen for requests
     context.on('request', request => {
 
@@ -298,7 +300,8 @@ async function initEventLogger(
         const cfg = context.cfg;
         const url = new URL(request.url());
 
-        if (['xhr','fetch'].includes(request.resourceType()) && url.hostname.includes(cfg.hostname)) {
+        // resourceTypes.includes(request.resourceType()) && url.hostname.includes(cfg.hostname)
+        if (resourceTypes.includes(request.resourceType()) && url.hostname.includes(cfg.hostname)) {
 
             cfg.requestID += 1;
             request.requestID = cfg.requestID;

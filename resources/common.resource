@@ -2,7 +2,7 @@
 Documentation  Common variables and keywords
 Library        Collections
 Library        Browser    jsextension=${CURDIR}/EventLogger.js,${CURDIR}/throttle_network.js
-...                       timeout=0:00:35  # auto_closing_level=KEEP
+...                       timeout=0:00:35  #auto_closing_level=KEEP
 Library        EventLogger
 
 

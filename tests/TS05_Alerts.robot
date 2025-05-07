@@ -15,7 +15,7 @@ TC01 Toast
     Check Checkbox  selector=id=typeinfo
     Click  text=Open Toast
 
-    Take Screenshot
+    #Take Screenshot
 
 
 TC02 Toast
@@ -42,7 +42,7 @@ TC02 Toast
     Click  text=Open Toast    
 
     Sleep  4 seconds 
-    Take Screenshot  
+    #Take Screenshot  
     
  
 

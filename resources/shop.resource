@@ -187,8 +187,6 @@ Step 4 Payment
     ${l_confirmMethod}    Get Element By Role    button    name=Confirm
     Click    ${l_confirmMethod}
 
-    Take Screenshot
-
     ${l_selector}    Get Element By Role    combobox    name=Payment method
     Select Options By    ${l_selector}    text    ${user.payment}
 
@@ -206,8 +204,6 @@ Step 4 Payment
 
     ${l_confirmPayment}    Get Element By Role    button    name=Confirm
     Click    ${l_confirmPayment}
-
-    Take Screenshot
 
     # Wait of alert message
     Get Element By    text    Thanks for your order! Your invoice number is INV-
