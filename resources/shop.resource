@@ -102,7 +102,7 @@ Step 1 Cart
     Verify Cart  ${tool}    ${quantity}
 
     ${l_button}    Get Element By Role    button    name=Proceed to checkout
-    Click With Options    ${l_button}
+    Click  ${l_button}
 
 Verify Cart
     [Documentation]    Show shopping cart
@@ -171,7 +171,7 @@ Step 3 Billing Address
     Should Be Equal    ${user.postcode}    ${postcode}
 
     ${l_proceed}    Get Element By Role    button    name=Proceed to checkout
-    Click With Options    ${l_proceed}
+    Click  ${l_proceed}
 
 Step 4 Payment
     [Documentation]    Specify payments methods and settings

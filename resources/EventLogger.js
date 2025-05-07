@@ -101,18 +101,24 @@ async function initEventLogger(
 
     context.addInitScript(() => {
 
-        // This script runs on a page in the browser, not in the Node.js context, so context does not work here
-        // We use MutationObserver to monitor DOM changes and classify them as alerts or toasts
+        // This script is run EVERY time a new page is created in the browser context
+        // This script runs in the browser, not in the Node.js context, so context, page and logger does not work here
+        // We use a global variable to store state in the window for the duration of the test
 
-        alerts = {};
-        alertID = 0;
-        alertTimer = null;
+        if (!window.alerts) {
+            // Initialize only once for the entire test run
+            alerts = {};
+            alertID = 0;    
+            alertTimer = null;
+        };
 
+        // Check if the element is generally visible (not hidden by CSS)
         function isGenerallyVisible(element) {
             const style = window.getComputedStyle(element)
             return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0'
         }
 
+        // Check if the element is visible in the viewport (not scrolled out of view)
         function isVisibleInViewport(element) {
             const rect = element.getBoundingClientRect()
             return (
@@ -123,6 +129,7 @@ async function initEventLogger(
             )
         }    
         
+        // Combine the two checks to determine if the element is fully visible
         function isElementFullyVisible(element) {
             return isGenerallyVisible(element) && isVisibleInViewport(element) && element.checkVisibility()
         }
@@ -146,8 +153,6 @@ async function initEventLogger(
 
         function classify(node) {
 
-            //TO-DO: check for aria role
-
             const className = node.className;
             // find the word alert or toast
             const isAlert = /\balert\b/;
@@ -155,10 +160,11 @@ async function initEventLogger(
             const isToast = /\b(toast|ngx-toastr)\b/;
             const toastType = /\btoast-(success|info|warning|error|danger)\b/g
             
-            let   msgType = null;                    
-            let   msgClass= null;
-            let   msgTitle= null;
-            let   msgText = null;    
+            let   msgType = null;      // alert or toast              
+            let   msgClass= null;      // alert class name
+            let   msgTitle= null;      // message title
+            let   msgText = null;      // message text
+            let   msgRole = null;      // aria role
                 
             if (isAlert.test(className)) {
                 const match = className.match(alertType);
@@ -166,6 +172,8 @@ async function initEventLogger(
                     msgType  = 'alert'
                     msgClass = match[0]
                     msgText  = node.innerText.trim()
+                    msgRole = node.getAttribute("role");
+                    if (!msgRole) msgRole = node.querySelector('*:first-child[role]')?.getAttribute("role");                
                 }                  
             } else if (isToast.test(className)) {
                 const match = className.match(toastType)
@@ -180,6 +188,8 @@ async function initEventLogger(
 
                     } else
                     msgText  = node.innerText.trim()
+                    msgRole = node.getAttribute("role");
+                    if (!msgRole) msgRole = node.querySelector('*:first-child[role]')?.getAttribute("role");     
                 }      
             }
 
@@ -198,12 +208,13 @@ async function initEventLogger(
                             text: msgText,                                    
                             title: msgTitle,                           
                             type: msgType,
+                            role: msgRole,
                             node:node,
                             updated: Date.now()};
 
             alerts[newID] = alertData; // store the alert in the alerts array
 
-            console.debug('Alert: Created',alertData);
+            console.debug(`Alert: Created`,alertData);
 
             if (Object.keys(alerts).length === 1) {
                 alertTimer = setInterval(() => {
@@ -214,6 +225,7 @@ async function initEventLogger(
                         } else {
                             delete alerts[alertID]; // remove the alert from the alerts array
                             console.debug(`Alert: Removed left=[${Object.keys(alerts)}]`,alertData);
+                            //window.alerts.push(alertData); // add the alert to the alerts array
                         }
                     };
 
@@ -242,7 +254,8 @@ async function initEventLogger(
 
         }        
 
-        // create a new instance of `MutationObserver` named `observer`,
+        // We use MutationObserver to monitor DOM changes and classify them as alerts or toasts
+        // May add other UI events in the future such as modal dialogs, notifications, etc.
         const observer = new MutationObserver((mutations) => {
 
             // for each mutation in the array of mutations passed to the callback function
@@ -274,10 +287,13 @@ async function initEventLogger(
             childList: true
         });
 
+        //No need to stop the observer, it will run until the page is closed
+
     });
 
     // listen for requests
     context.on('request', request => {
+
         /** @type {ContextData} */
         const cfg = context.cfg;
         const url = new URL(request.url());
@@ -288,6 +304,13 @@ async function initEventLogger(
             request.requestID = cfg.requestID;
             cfg.activeRequests.add(request.requestID);
             cfg.lastEventTime = Date.now();
+
+            //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `waitIdle size=${cfg.activeRequests.size} promise=${cfg.waitPromise} id=${cfg.waitIdle}` });
+            if (cfg.waitIdle) {
+                //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `clear waitIdle id=${cfg.waitIdle}` });
+                clearTimeout(context.cfg.waitIdle);
+                cfg.waitIdle = null;
+            }            
 
             const methodsWithBody = ['POST', 'PUT', 'PATCH'];
             const requestMethod = request.method();
@@ -317,12 +340,6 @@ async function initEventLogger(
             }
 
             cfg.events.push({ time: Date.now(), event: 'request', 'type': 'INFO', data: rqd });
-            //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `waitIdle size=${cfg.activeRequests.size} promise=${cfg.waitPromise} id=${cfg.waitIdle}` });
-            if (cfg.waitIdle) {
-                //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `clear waitIdle id=${cfg.waitIdle}` });
-                clearTimeout(context.cfg.waitIdle);
-                cfg.waitIdle = null;
-            }
         } 
     });
 
@@ -336,6 +353,12 @@ async function initEventLogger(
 
             cfg.activeRequests.delete(request.requestID);
             cfg.lastEventTime = Date.now();
+
+            //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `waitIdle size=${cfg.activeRequests.size} promise=${cfg.waitPromise}` });
+            if (cfg.activeRequests.size === 0 && context.cfg.waitPromise) {
+                cfg.waitIdle = setTimeout(cfg.waitPromise.resolve, cfg.minIdle);
+                //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `set waitIdle id=${cfg.waitIdle} time=${cfg.minIdle}`  });
+            }
 
             const methodsWithBody = ['POST', 'PUT', 'PATCH'];
             const requestMethod = request.method();
@@ -365,11 +388,6 @@ async function initEventLogger(
             }
 
             cfg.events.push({ time: Date.now(), event: 'request', type: 'WARN', data: rqd });
-            //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `waitIdle size=${cfg.activeRequests.size} promise=${cfg.waitPromise}` });
-            if (cfg.activeRequests.size === 0 && context.cfg.waitPromise) {
-                cfg.waitIdle = setTimeout(cfg.waitPromise.resolve, cfg.minIdle);
-                //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `set waitIdle id=${cfg.waitIdle} time=${cfg.minIdle}`  });
-            }
         }
     });
 
@@ -383,6 +401,12 @@ async function initEventLogger(
 
             cfg.activeRequests.delete(request.requestID);
             cfg.lastEventTime = Date.now();
+
+            //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `waitIdle size=${cfg.activeRequests.size} promise=${cfg.waitPromise}` });
+            if (cfg.activeRequests.size === 0 && context.cfg.waitPromise) {
+                cfg.waitIdle = setTimeout(cfg.waitPromise.resolve, cfg.minIdle);
+                //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `set waitIdle id=${cfg.waitIdle} time=${cfg.minIdle}`  });
+            }           
 
             const methodsWithBody = ['POST', 'PUT', 'PATCH'];
             const requestMethod = request.method();
@@ -435,11 +459,6 @@ async function initEventLogger(
                 content: content
             }
             cfg.events.push({ time: Date.now(), event: 'response', type: 'INFO', data: [rqd,rsd] });
-            //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `waitIdle size=${cfg.activeRequests.size} promise=${cfg.waitPromise}` });
-            if (cfg.activeRequests.size === 0 && context.cfg.waitPromise) {
-                cfg.waitIdle = setTimeout(cfg.waitPromise.resolve, cfg.minIdle);
-                //cfg.events.push({ 'time': Date.now(), 'event': 'console', 'type': 'DEBUG', 'data': `set waitIdle id=${cfg.waitIdle} time=${cfg.minIdle}`  });
-            }
 
         }
     });
@@ -582,24 +601,23 @@ async function waitForEvents(context, page) {
     cfg.events.push({ time: endTime, event: 'console', type: 'DEBUG', data: `Wait satisfied in ${delta} ms` });
 }
 
-async function reportEvents(context) {
+async function reportEvents(context,page, logger) {
 
     if (!('cfg' in context)) return;
+
+    alerts = await page.evaluate(() => {
+        return window.alerts; // return the alerts array from the browser context
+    });
+
+    //logger(`Typeof: ${typeof alerts}`);
+    //logger(`Alerts: ${JSON.stringify(alerts,null,2)}`);
 
     return context.cfg.events;
 }
 
-initEventLogger.rfdoc = `
-Init Event Logger https://api.practicesoftwaretesting.com
-.`
-
-waitForEvents.rfdoc = `
-Wait for Events.
-.`
-
-reportEvents.rfdoc = `
-Report Events.
-.`
+initEventLogger.rfdoc = `Init Event Logger.`
+waitForEvents.rfdoc = `Wait for Events.`
+reportEvents.rfdoc = `Report Events..`
 
 exports.__esModule = true;
 exports.initEventLogger = initEventLogger;

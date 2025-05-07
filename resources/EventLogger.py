@@ -84,7 +84,7 @@ class EventLogger:
       seconds = milliseconds / 1000
       dt_object = datetime.datetime.fromtimestamp(seconds)
       return dt_object.strftime("%H:%M:%S.%f")[:-3]
-
+    
     def _generate_html_report(self, events):
         """
         Generate an HTML report from the merged events.
@@ -97,12 +97,15 @@ class EventLogger:
         bgcolor = 0 # Start with the first color
         html = '<table style="width:100%"><tr><th style="width:80px">Time</th><th style="width:60px">Source</th><th style="width:60px">Type</th><th style="width:30px">CTX</th><th style="width:100%">Data</th></tr>'
         for ev in events:            
+            event_type = ev['type']
+
+            # Skip events that are not in the specified log level
+            if LogLevel[event_type].value < self.logLevel.value: continue        
+
             time = self._format_time(ev['time'])
             event = ev['event']
-            event_type = ev['type']
-            if LogLevel[event_type].value < self.logLevel.value: continue            
-            data = self._format_event_data(ev)
             level = ev.get('level', level)
+            data = self._format_event_data(ev)
 
             if event == 'script':
                bonus = 0
@@ -148,17 +151,25 @@ class EventLogger:
             return msg
 
         if event['event'] == 'script':
-            return f"<span style='color:blue'>{event['data']}</span>"
+            return f"<span style='color:#3498db'>{event['data']}</span>"
 
         # Default formatting for other event types
         return str(event['data'])
       
+    def _get_full_name(self, item):
+        parts = [item.name]
+        parent = item.parent
+        while parent:
+            parts.insert(0, parent.name)
+            parent = parent.parent
+        return ".".join(parts)
+          
     def start_user_keyword(self, kw:running.Keyword, impl, result:result.Keyword): 
 
       if result.status in ['FAIL','SKIP','NOT RUN']: return      
 
       try:
-        args = " ".join([str(arg) for arg in result.args])    
+        args = " ".join([str(arg) for arg in result.args])   
         logger.info(f"Start: {kw.name} {args}",also_console=True)
         if  len(args) > 80:
           args = f'<details><summary>arguments</summary>{args}</details>'
@@ -203,7 +214,7 @@ class EventLogger:
         if result.libname in self.ommit: return
         logPrefix = ''
       
-      args = " ".join([str(arg) for arg in result.args])
+      args = " ".join([str(arg) for arg in result.args]) 
       msg = f"{logPrefix}{kw.name} {args}"  
       logger.info(msg,also_console=True)
 

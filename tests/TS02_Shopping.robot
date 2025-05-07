@@ -1,6 +1,6 @@
 *** Settings ***
 Documentation       Toolshop Shopping
-Library             DataDriver  ../resources/TS02_Shopping.csv
+Library             DataDriver  ../resources/TS02_Shopping-2.csv
 Resource            ../resources/shop.resource
 Resource            ../resources/login.resource
 Test Template       Search And Shop
