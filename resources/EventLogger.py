@@ -4,8 +4,8 @@ from robot import running, result
 from robot.libraries.BuiltIn import BuiltIn
 import datetime, time
 from enum import Enum
-
-import html
+from collections import defaultdict
+import json
 
 class LogLevel(Enum):
     DEBUG = 1
@@ -36,6 +36,9 @@ class EventLogger:
       self.level = 0
       self.local_events = []  # Local list to store events
       self.logLevel:LogLevel = LogLevel.INFO
+      self.root = 0
+      self.graph = defaultdict(list)
+      self.activeResponses = []
 
     @keyword('Init')
     def initEventLogging(self, 
@@ -107,6 +110,7 @@ class EventLogger:
             event = ev['event']
             level = ev.get('level', level)
             data = self._format_event_data(ev)
+            self.waiting = ev.get('waiting', self.waiting)
 
             if event == 'script':
                bonus = 0
@@ -124,17 +128,35 @@ class EventLogger:
             else:
               html += f"<tr><td>{time}</td><td>{event}</td><td>{event_type}</td><td style='background:{bgcolors[bgcolor]}'></td><td><div style='{indent_style}'>{data}</div></td></tr>"
            
-        html += '</table>'
+        html += '</table>' + f"<br><br><pre>{json.dumps(self.graph,indent=2)}</pre>"  
+
         return f"<details><summary>Event log:</summary>{html}</details>"
 
     def _format_event_data(self, event):
         """
         Format event data based on its type.
         """
-        if event['event'] == 'request':            
-            if self.waiting == False: 
+        if event['event'] == 'request':  
+            if self.waiting: 
+              # We are within a wait for events situation
+              # check if this request is a follow up 
+              # request is within 100ms of a previous response
+              # or this request comes after a new entry in the graph
+              if self.lastEvent and 0 < event['time'] - self.lastEvent['time'] <= 100:
+                  # append the requestID to the last response
+                  if type(self.lastEvent['data']) == list:
+                    self.graph[self.lastEvent['data'][0]['requestID']].append(event['data']['requestID'])
+                  else:
+                    self.graph[self.lastEvent['data']['requestID']].append(event['data']['requestID'])  
+              else:                   
+                 # create a new entry in the graph for the requestID 
+                 self.root -= 1
+                 self.lastEvent = event
+                 self.graph[self.root].append(event['data']['requestID'])  
+            else: 
                test_case = BuiltIn().get_variable_value('${TEST NAME}')
                logger.warn(f"{test_case}: Received request while not waiting for events")
+            
             rqd = event['data']
             rq_status = f"<span style='color:red'>{rqd['failure']}</span>" if rqd.get('failure') else "<span style='color:green'>Ok</span>"
             header = f"{rqd['requestID']:03d} {rqd['method']} {rqd['resourceType']} {rqd['url']} {rq_status}"
@@ -142,9 +164,13 @@ class EventLogger:
             return details
 
         if event['event'] == 'response':
+            
             if self.waiting == False: 
                test_case = BuiltIn().get_variable_value('${TEST NAME}')
-               logger.warn(f"{test_case}: Received response while not waiting for events")            
+               logger.warn(f"{test_case}: Received response while not waiting for events") 
+            else:
+               self.lastEvent = event
+
             rqd, rsd = event['data']
             s_c = 'green' if rsd['ok'] else 'red'
             header = f"{rqd['requestID']:03d} {rqd['method']} {rqd['resourceType']} {rqd['url']} <span style='color:{s_c}'>status={rsd['status']} {rsd['statusText']}</span>"
@@ -215,9 +241,11 @@ class EventLogger:
       
       if result.status in ['FAIL','SKIP','NOT RUN']: return
 
+      waiting = False
+
       if self.waitAfter and f"{result.libname}.{kw.name}" in self.waitAfter:  
         logPrefix = 'Start: '   
-        self.waiting = True
+        waiting = True
       else:
         if result.libname in self.ommit: return
         logPrefix = ''
@@ -236,7 +264,8 @@ class EventLogger:
                                 'level': self.level,
                                 'event': 'script', 
                                 'type': 'INFO', 
-                                'data': msg})
+                                'data': msg,
+                                'waiting': waiting})
     
       if logPrefix == 'Start: ':
         self.level +=1
@@ -253,7 +282,13 @@ class EventLogger:
           # logger.error(ex)
           result.status = 'FAIL'
           result.message = str(ex)
-        self.waiting
+        self.lastEvent = None
+        self.local_events.append({'time': int(time.time() * 1000), 
+                                  'level': self.level,
+                                  'event': 'script', 
+                                  'type': 'INFO', 
+                                  'data': 'waiting=False, lastResponse=None',
+                                  'waiting': False})        
       else:
          return
 

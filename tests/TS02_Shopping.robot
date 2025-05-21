@@ -1,6 +1,6 @@
 *** Settings ***
 Documentation       Toolshop Shopping
-Library             DataDriver  ../resources/TS02_Shopping-2.csv
+Library             DataDriver  ../resources/TS02_Shopping.csv
 Resource            ../resources/shop.resource
 Resource            ../resources/login.resource
 Test Template       Search And Shop
@@ -24,3 +24,4 @@ Search And Shop
     [Arguments]    ${search}   ${tool}  ${quantity}
     Login User    ${USER_NEW}
     Shop For Tools    user=${USER_NEW}    search=${search}    tool=${tool}    quantity=${quantity}
+    Sleep   5 seconds
